@@ -44,9 +44,7 @@ python experiments/the-imitation-game.py
 ## Contacts
 
 * zceejz0@ucl.ac.uk
-* https://twitter.com/aturing
-* https://scholar.google.co.uk/citations?user=VWCHlwkAAAAJ&hl=en&oi=sra
-* https://github.com/aturing
+
 
 
 ## Cite
