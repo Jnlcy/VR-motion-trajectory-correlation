@@ -1,3 +1,7 @@
+
+
+
+
 from optparse import make_option
 import cv2
 import numpy as np
@@ -42,7 +46,7 @@ def lucas_kanade_method(video_path):
         if not ret:
             break
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        # calculate optical flow
+        # forward-backwoard error detection
         p1, st, err = cv2.calcOpticalFlowPyrLK(
             old_gray, frame_gray, p0, None, **lk_params
         )
@@ -73,7 +77,8 @@ def lucas_kanade_method(video_path):
                 mask = cv2.line(mask, (int(a),int (b)), (int(c),int(d)), color[i].tolist(), 2)
                 frame = cv2.circle(frame, (int(a),int(b) ), 5, color[i].tolist(), -1)
             img = cv2.add(frame, mask)
-            cv2.imwrite("frame.jpg", img)
+            cv2.imshow('output',img)
+            
             k = cv2.waitKey(25) & 0xFF
             if k == 27:
                 break
@@ -83,7 +88,8 @@ def lucas_kanade_method(video_path):
             old_gray = frame_gray.copy()
             p0 = good_new.reshape(-1, 1, 2)
 
-        idx +=1    
+        idx +=1
+    cv2.imwrite("frame.jpg", img)    
     return optical_flow
     #save_optical_flow(flow)
     
