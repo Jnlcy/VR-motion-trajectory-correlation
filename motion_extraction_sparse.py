@@ -22,12 +22,12 @@ def lucas_kanade_method(video_path):
     
     color = (0, 255, 0) 
     
-    feature_params = dict(maxCorners=100, qualityLevel=0.3, minDistance=7, blockSize=7)
+    feature_params = dict(maxCorners=100, qualityLevel=0.2, minDistance=7, blockSize=7)
     # Parameters for lucas kanade optical flow
 
     lk_params = dict(
         winSize=(15, 15),
-        maxLevel=2,
+        maxLevel=3,
         criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03),
     )
    
@@ -46,10 +46,9 @@ def lucas_kanade_method(video_path):
         print(t)
 
         #create old frame
-        cap.set(cv2.CAP_PROP_POS_MSEC, float((t-dt)*MILLISECONDS))
+        cap.set(cv2.CAP_PROP_POS_MSEC, float((t-5*dt)*MILLISECONDS))
         ret, old_frame = cap.read()
-        #save frame
-        cv2.imwrite('frame'+str(t)+'.jpg',old_frame)
+        
 
         old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
         p0 = cv2.goodFeaturesToTrack(old_gray, mask=None, **feature_params)
@@ -58,6 +57,8 @@ def lucas_kanade_method(video_path):
 
         cap.set(cv2.CAP_PROP_POS_MSEC, float(t*MILLISECONDS))
         ret, frame = cap.read()
+        #save frame
+        cv2.imwrite('frame'+str(t)+'.jpg',frame)
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
 
@@ -88,13 +89,6 @@ def lucas_kanade_method(video_path):
         
             #plot optical flow
             img=plotflow(mask,frame,good_new,good_old)
-
-            '''
-            if k == 27:
-                break
-            if k == ord("c"):
-                mask = np.zeros_like(old_frame)
-            '''
             k = cv2.waitKey(25) & 0xFF
             
             cv2.imwrite("flow"+str(t)+".jpg", img) 
