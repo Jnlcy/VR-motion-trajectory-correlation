@@ -2,6 +2,8 @@ from optparse import make_option
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import os
+
 
 def plotflow(mask,frame,new,old):
     for i, (new, old) in enumerate(zip(new, old)):
@@ -10,7 +12,7 @@ def plotflow(mask,frame,new,old):
         # Green color in BGR
         color = (0, 128, 0)      
         
-        mask = cv2.arrowedLine(mask, (int(c),int(d)), (int(a),int (b)), color,2)
+        mask = cv2.arrowedLine(mask, (int(c),int(d)), (int(a),int (b)), color,3)
         frame = cv2.circle(frame, (int(a),int(b) ), 5, color, -1)
    
     
@@ -70,14 +72,14 @@ def lucas_kanade_method(video_path):
 
     
     
-    for t in [1,2,5,14]:
+    for t in [1,4,14]:
         MILLISECONDS = 1000
         fps = cap.get(cv2.CAP_PROP_FPS)
         dt =1/fps
         print(t)
 
         #create old frame
-        cap.set(cv2.CAP_PROP_POS_MSEC, float((t-9*dt)*MILLISECONDS))
+        cap.set(cv2.CAP_PROP_POS_MSEC, float(t*MILLISECONDS))
         ret, old_frame = cap.read()
         
         #convert the frame into grey scale
@@ -86,12 +88,13 @@ def lucas_kanade_method(video_path):
         mask = np.zeros_like(old_frame)
 
 
-        cap.set(cv2.CAP_PROP_POS_MSEC, float(t*MILLISECONDS))
+        cap.set(cv2.CAP_PROP_POS_MSEC, float((t+19*dt)*MILLISECONDS))
         ret, frame = cap.read()
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         #save frame
         img = cv2.addWeighted(old_frame, 0.5,frame,0.5,0.0)
-        cv2.imwrite('frame at '+str(t)+' th second.jpg',img)
+        frame_name=os.path.join('images','frame at '+str(t)+' th second.jpg')
+        cv2.imwrite(frame_name,img)
         
 
 
@@ -121,14 +124,17 @@ def lucas_kanade_method(video_path):
             good_old = p0[st == 1]
         
             #plot optical flow
-            mask,frame=plotflow(mask,frame,good_new,good_old)
+            flow,frame=plotflow(mask,frame,good_new,good_old)
             #img=plotquiver(t,frame,good_new,good_old)
             
         
             k = cv2.waitKey(25) & 0xFF
-            flow = cv2.add(img,mask)
-            
-            cv2.imwrite("flow"+str(t)+".jpg", flow) 
+            flow_image = cv2.add(img,mask)
+
+            flow_name =  os.path.join('images','flow'+str(t)+".jpg")
+            flow_image_name  =  os.path.join('images',"flow with image "+str(t)+".jpg")      
+            cv2.imwrite(flow_name,flow)
+            cv2.imwrite(flow_image_name, flow_image) 
             
       
 
@@ -138,6 +144,8 @@ def lucas_kanade_method(video_path):
 def main():
     
     path = '1_PortoRiverside.mp4'
+    
+    
     
     flow=lucas_kanade_method(path)
     
