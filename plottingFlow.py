@@ -142,8 +142,8 @@ def compare_lucas_kanade_method(video_path):
     
     cap.release()
 def main():
-    
-    path = '1_PortoRiverside.mp4'
+    STIMULI_FOLDER = './David_MMSys_18/Stimuli'
+    path = os.path.join(STIMULI_FOLDER,'2_Diner.mp4')
     
     
     
