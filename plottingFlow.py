@@ -18,6 +18,8 @@ def plotflow(mask,frame,new,old):
     
     return mask,frame
 
+
+
 '''
 
 def plotquiver(t,frame,new,old):
@@ -141,9 +143,11 @@ def compare_lucas_kanade_method(video_path):
     #save_optical_flow(flow)
     
     cap.release()
+
+
 def main():
     STIMULI_FOLDER = './David_MMSys_18/Stimuli'
-    path = os.path.join(STIMULI_FOLDER,'2_Diner.mp4')
+    path = os.path.join(STIMULI_FOLDER,'1_PortoRiverside.mp4')
     
     
     

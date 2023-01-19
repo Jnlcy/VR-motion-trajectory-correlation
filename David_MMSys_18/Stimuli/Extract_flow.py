@@ -1,12 +1,12 @@
 from optparse import make_option
 import cv2
 import numpy as np
-import cv2 as cv
-import cv2 as argparse
+import os
+
 
 #def read_fixation():
 
-
+STIMULI_FOLDER = './David_MMSys_18/Stimuli'
 def save_optical_flow(flow):
     
     np.savetxt('flow.csv',flow,delimiter=",")
@@ -71,9 +71,10 @@ def lucas_kanade_method(video_path):
             for i, (new, old) in enumerate(zip(good_new, good_old)):
                 a, b = new.ravel()
                 c, d = old.ravel()
+                color = (0, 255, 0) 
                 optical_flow.append([int(idx),time,a,b])
-                mask = cv2.line(mask, (int(a),int (b)), (int(c),int(d)), color[i].tolist(), 2)
-                frame = cv2.circle(frame, (int(a),int(b) ), 5, color[i].tolist(), -1)
+                mask = cv2.line(mask, (int(a),int (b)), (int(c),int(d)), color, 2)
+                frame = cv2.circle(frame, (int(a),int(b) ), 5, color, -1)
             img = cv2.add(frame, mask)
             cv2.imshow("frame.jpg", img)
             k = cv2.waitKey(25) & 0xFF
@@ -96,7 +97,7 @@ def lucas_kanade_method(video_path):
 #def viewport_filer()
 def main():
 
-    path = '1_PortoRiverside.mp4'
+    path = os.path.join(STIMULI_FOLDER,'1_PortoRiverside.mp4')
 
     flow=lucas_kanade_method(path)
     print(flow)

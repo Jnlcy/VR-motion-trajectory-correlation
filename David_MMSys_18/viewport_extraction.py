@@ -1,3 +1,4 @@
+
 #create and store dataset
 import pandas as pd
 import numpy as np
@@ -54,33 +55,12 @@ def load_data():
     return tmpdf
 #get xyz corner of the view port
 
-'''def get_one_trace() -> np.array:
-    dataset = load_data()
-    return dataset.iloc[0]['traces'][0]
-
-trace = get_one_trace()
-print(trace)'''
-
 
 def get_traces(ds,idx):
     traces = ds.loc[idx]['traces']
     video = ds.loc[idx]['ds_video']
     return traces, video
 
-
-
-
-    
-
-
-def xyz2uv(xyz):
-    x, y, z = np.split(xyz, 3, axis=-1)
-    u = np.arctan2(x, z)
-    c = np.sqrt(x**2 + z**2)
-    v = np.arctan2(y, c)
-    coor_x = (u / (2 * np.pi) + 0.5) * WIDTH- 0.5
-    coor_y = (-v / np.pi + 0.5) * HEIGHT - 0.5
-    return np.concatenate([coor_x, coor_y], axis=-1)
 
 
 
@@ -94,38 +74,12 @@ def fov_points(trace) -> np.ndarray:
             rotation.rotate(_fov_x1y0z0_points[2]),
             rotation.rotate(_fov_x1y0z0_points[3]),
         ])
-        print(points)
+        #print(points)
         
-        #convert into 2d corners
-        points_converted = np.array([
-                xyz2uv(points[0]),
-                xyz2uv(points[1]),
-                xyz2uv(points[2]),
-                xyz2uv(points[3])
-            ])
             
-        _fov_points[(trace[1], trace[2], trace[3])] = points_converted
+        _fov_points[(trace[1], trace[2], trace[3])] = points
     return _fov_points[(trace[1], trace[2], trace[3])]
 
-
-
-def crop_image(img,corners):
-    
-    x = []
-    y = []
-    for view_corner in corners:
-        xx,yy = (np.split(view_corner,2,axis=-1))
-        x.append(xx)
-        y.append(yy)
-    
-    x_min = np.min(x)
-    x_max = np.max(x)
-    y_min = np.min(y)
-    y_max = np.max(y)
-
-    crop_img = img[int(y_min):int(y_max),int(x_min):int(x_max)]
-    # cv.imshow('cropped',crop_img)
-    return crop_img
 
 
 def compare_lucas_kanade_method(video_path,t,corners):
@@ -161,7 +115,7 @@ def compare_lucas_kanade_method(video_path,t,corners):
     #create old frame
     cap.set(cv.CAP_PROP_POS_MSEC, float(t*MILLISECONDS))
     ret, old_frame = cap.read()
-    old_frame = crop_image(old_frame,corners)
+    #old_frame = crop_image(old_frame,corners)
         
      #convert the frame into grey scale
     old_gray = cv.cvtColor(old_frame, cv.COLOR_BGR2GRAY)
@@ -171,7 +125,7 @@ def compare_lucas_kanade_method(video_path,t,corners):
 
     cap.set(cv.CAP_PROP_POS_MSEC, float(t*MILLISECONDS+200))
     ret, frame = cap.read()
-    frame = crop_image(frame,corners)
+    #frame = crop_image(frame,corners)
     frame_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
     #save frame
     img = cv.addWeighted(old_frame, 0.5,frame,0.5,0.0)
@@ -192,7 +146,7 @@ def compare_lucas_kanade_method(video_path,t,corners):
         p0 = cv.goodFeaturesToTrack(old_gray, mask=None, **feature_params)
         # Get rid of old lines
         mask = np.zeros_like(old_frame)
-        cv.imshow ('frame', frame)
+        #cv.imshow ('frame', frame)
 
     else:
         # Select good points
@@ -200,41 +154,81 @@ def compare_lucas_kanade_method(video_path,t,corners):
         good_new = p1[st == 1]
         good_old = p0[st == 1]
         
-        #plot optical flow
-        flow,frame=plotflow(mask,frame,good_new,good_old)
-        #img=plotquiver(t,frame,good_new,good_old)
+        #filter the useful optical flow
+        filtered_flow,mask,frame=flow_filter(mask,frame,good_new,good_old,corners)
+        #flow_image = cv.add(img,mask)
+        #cv.imshow('flow with image', flow_image)
             
         
         k = cv.waitKey(25) & 0xFF
-        flow_image = cv.add(img,mask)
+        
         cap.release()
     
         #flow_name =  os.path.join('images','flow'+str(t)+".jpg")
         #flow_image_name  =  os.path.join('images',"flow with image "+str(t)+".jpg")      
         #cv.imwrite(flow_name,flow)
-        cv.imshow('flow with image', flow_image)
+        
          
     
-    return flow
+    return filtered_flow
 
                  
     #save_optical_flow(flow)
     
-    
+def ab2xyz(a,b): #project 2d piont onto 2d unit square
 
-def plotflow(mask,frame,new,old):
+    theta = a/WIDTH *2* np.pi # The longitude ranges from 0, to 2*pi
+    phi = b/HEIGHT* np.pi # The latitude ranges from 0 to pi, origin of equirectangular in the top-left corner
+    xyz = eulerian_to_cartesian(theta,phi)
+    x=xyz[0]
+    y=xyz[1]
+    z=xyz[2]
+    return x,y,z
+
+
+
+def flow_filter(mask,frame,new,old,corners):
+    filtered_flow=[]
+
     for i, (new, old) in enumerate(zip(new, old)):
         a, b = new.ravel()
         c, d = old.ravel()
-        # Green color in BGR
-        color = (0, 255, 0)      
+        #project 2d points onto 3d sphere
+        x_n,y_n,z_n = ab2xyz(a,b)
+        #print([x_n,y_n,z_n])
+        x_o,y_o,z_o =ab2xyz(c,d)
         
-        mask = cv.arrowedLine(mask, (int(c),int(d)), (int(a),int (b)), color,2)
-        frame = cv.circle(frame, (int(a),int(b) ), 5, color, -1)
-   
-    
-    return mask,frame
 
+        x_lim_up = max(corners[:,0])
+        x_lim_down = min(corners[:,0])
+        y_lim_up = max(corners[:,1])
+        y_lim_down = min(corners[:,1])
+        z_lim_up = max(corners[:,2])
+        z_lim_down = min(corners[:,2])
+        
+
+        #print([x_lim_up,x_lim_down, y_lim_up,y_lim_down,z_lim_up,z_lim_down])
+
+         #and (y_lim_down<y_n<y_lim_up)
+        if (x_lim_down<x_n<x_lim_up) and (y_lim_down<y_n<y_lim_up) and(z_lim_down<z_n<z_lim_up):
+                
+            #print([x_n,y_n,z_n])
+            if ((x_lim_down<=x_o<=x_lim_up)and (y_lim_down<=y_o<=y_lim_up)and(z_lim_down<=z_o<=z_lim_up)):
+                # Green color in BGR
+                color = (0, 255, 0)     
+                filtered_flow.append([x_n,y_n,z_n]) 
+                 
+                mask = cv.arrowedLine(mask, (int(c),int(d)), (int(a),int (b)), color,2)
+                frame = cv.circle(frame, (int(a),int(b) ), 5, color, -1)
+                
+        else:
+            mask = np.zeros_like(frame)
+    img = cv.add(frame, mask)
+    cv.imshow("frame.jpg", img)
+        
+    flow = np.array(filtered_flow)
+    print(flow)
+    return flow,mask,frame
 
 def add_flow():
     ds = load_data()
@@ -261,30 +255,32 @@ def add_flow():
     
     return(ds2)
 
-ds2 = add_flow()
-#print(ds2)
-            
-            
 
+ds2 = add_flow()
+print(ds2)
+            
+            
 
 #test dataset assign
-'''ds = load_data()
+"""ds = load_data()
 traces,video_name = get_traces(ds,0)
 print(video_name)
 video_path = os.path.join(STIMULI_FOLDER,video_name +'.mp4')
 print(video_path)
-corners = fov_points(traces[9])
+corners = fov_points(traces[10])
 print(corners)
-t = traces[9][0]
+t = traces[10][0]
 print(t)
-flow = compare_lucas_kanade_method(video_path,1.8,corners)
-print(flow)'''
+filtered_flow = compare_lucas_kanade_method(video_path,2,corners)
+print(filtered_flow)"""
 
 
 
 
-#ds2 = ds.assign(Corners = None,Optical_flow =None)
-# print(ds2)
+
+
+
+
             
 
 
@@ -308,5 +304,4 @@ print(flow)'''
 
 
     
-
 

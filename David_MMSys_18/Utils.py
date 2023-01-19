@@ -14,12 +14,12 @@ import pandas as pd
 # phi in the range 0 to pi (0 being the north pole, pi being the south pole)
 def cartesian_to_eulerian(x, y, z):
     r = np.sqrt(x*x+y*y+z*z)
-    theta = np.arctan2(y, x)
-    phi = np.arccos(z/r)
+    theta = np.arctan2(y, x) #longitude
+    phi = np.arccos(z/r) #latitude
     # remainder is used to transform it in the positive range (0, 2*pi)
     theta = np.remainder(theta, 2*np.pi)
     return theta, phi
-
+       
 # The (input) values of theta and phi are assumed to be as follows:
 # theta = Any              phi =   0    : north pole (0, 0, 1)
 # theta = Any              phi =  pi    : south pole (0, 0, -1)
