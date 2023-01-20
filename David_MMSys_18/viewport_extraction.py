@@ -83,10 +83,10 @@ def fov_points(trace) -> np.ndarray:
 
 
 def compare_lucas_kanade_method(video_path,t,corners):
+    MILLISECONDS = 1000
     cap = cv.VideoCapture(video_path)
     # params for ShiTomasi corner detection
-    
-    
+ 
     feature_params = dict(maxCorners=500, qualityLevel=0.05, minDistance=7, blockSize=1)
     # Parameters for lucas kanade optical flow
 
@@ -96,43 +96,30 @@ def compare_lucas_kanade_method(video_path,t,corners):
         criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT,10, 0.03),
     )
    
-    # Take first frame and find corners in it
     
-    ret, old_frame = cap.read()
-    old_gray = cv.cvtColor(old_frame, cv.COLOR_BGR2GRAY)
-    p0 = cv.goodFeaturesToTrack(old_gray, mask=None, **feature_params)
-
-    # Create a mask image for plotting purposes
-    mask = np.zeros_like(old_frame)
-    
-
-    
-    
-    MILLISECONDS = 1000
     #fps = cap.get(cv.CAP_PROP_FPS)
-    print(t)
+
 
     #create old frame
     cap.set(cv.CAP_PROP_POS_MSEC, float(t*MILLISECONDS))
     ret, old_frame = cap.read()
-    #old_frame = crop_image(old_frame,corners)
+    
         
-     #convert the frame into grey scale
+    #convert the frame into grey scale
     old_gray = cv.cvtColor(old_frame, cv.COLOR_BGR2GRAY)
     p0 = cv.goodFeaturesToTrack(old_gray, mask=None, **feature_params)
     mask = np.zeros_like(old_frame)
 
 
+
     cap.set(cv.CAP_PROP_POS_MSEC, float(t*MILLISECONDS+200))
     ret, frame = cap.read()
-    #frame = crop_image(frame,corners)
+
     frame_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
     #save frame
     img = cv.addWeighted(old_frame, 0.5,frame,0.5,0.0)
-    frame_name=os.path.join('images','frame at '+str(t)+' th second.jpg')
-    #cv.imwrite(frame_name,img)
+    #cv.imshow("image.jpg",img)
         
-
     # forward-backwoard error detection
     p1, st, err = cv.calcOpticalFlowPyrLK(
         old_gray, frame_gray, p0, None, **lk_params
@@ -157,19 +144,10 @@ def compare_lucas_kanade_method(video_path,t,corners):
         #filter the useful optical flow
         filtered_flow,mask,frame=flow_filter(mask,frame,good_new,good_old,corners)
         #flow_image = cv.add(img,mask)
-        #cv.imshow('flow with image', flow_image)
-            
-        
-        k = cv.waitKey(25) & 0xFF
-        
-        cap.release()
+        #cv.imshow('flow wih image', flow_image)
     
-        #flow_name =  os.path.join('images','flow'+str(t)+".jpg")
-        #flow_image_name  =  os.path.join('images',"flow with image "+str(t)+".jpg")      
-        #cv.imwrite(flow_name,flow)
         
-         
-    
+    cap.release()
     return filtered_flow
 
                  
@@ -189,10 +167,12 @@ def ab2xyz(a,b): #project 2d piont onto 2d unit square
 
 def flow_filter(mask,frame,new,old,corners):
     filtered_flow=[]
+    color = (0, 255, 0)  
 
     for i, (new, old) in enumerate(zip(new, old)):
         a, b = new.ravel()
         c, d = old.ravel()
+        
         #project 2d points onto 3d sphere
         x_n,y_n,z_n = ab2xyz(a,b)
         #print([x_n,y_n,z_n])
@@ -210,21 +190,27 @@ def flow_filter(mask,frame,new,old,corners):
         #print([x_lim_up,x_lim_down, y_lim_up,y_lim_down,z_lim_up,z_lim_down])
 
          #and (y_lim_down<y_n<y_lim_up)
-        if (x_lim_down<x_n<x_lim_up) and (y_lim_down<y_n<y_lim_up) and(z_lim_down<z_n<z_lim_up):
+        if (x_lim_down<=x_n<=x_lim_up) and (y_lim_down<=y_n<=y_lim_up) and(z_lim_down<=z_n<=z_lim_up):
                 
-            #print([x_n,y_n,z_n])
-            if ((x_lim_down<=x_o<=x_lim_up)and (y_lim_down<=y_o<=y_lim_up)and(z_lim_down<=z_o<=z_lim_up)):
-                # Green color in BGR
-                color = (0, 255, 0)     
-                filtered_flow.append([x_n,y_n,z_n]) 
+            
+            # Green color in BGR
+            mask = cv.arrowedLine(mask, (int(c),int(d)), (int(a),int (b)), color,2)
+            frame = cv.circle(frame, (int(a),int(b) ), 5, color, -1)   
+            
+            filtered_flow.append([x_o,y_o,z_o,x_n,y_n,z_n]) 
+
+            #print([a,b,c,d])
                  
-                mask = cv.arrowedLine(mask, (int(c),int(d)), (int(a),int (b)), color,2)
-                frame = cv.circle(frame, (int(a),int(b) ), 5, color, -1)
+            #mask = cv.arrowedLine(mask, (int(c),int(d)), (int(a),int(b)),color,1)
+            #print([a,b,c,d])
+            #frame = cv.circle(frame, (int(a),int(b)), 5, color, -1)
                 
         else:
-            mask = np.zeros_like(frame)
-    img = cv.add(frame, mask)
+            pass
+
+    img= cv.add(frame, mask)
     cv.imshow("frame.jpg", img)
+    cv.waitKey(25) & 0xFF
         
     flow = np.array(filtered_flow)
     print(flow)
@@ -232,11 +218,11 @@ def flow_filter(mask,frame,new,old,corners):
 
 def add_flow():
     ds = load_data()
-    print(ds)
+    #print(ds)
     ds2 = ds.assign(Corners = None,Optical_flow =None)
-    ds2 = ds2.head(2)
+    ds2 = ds2.head(1)
     for i in range(len(ds2)):
-        print(i)
+        #print(i)
         traces,video_name = get_traces(ds,i)
         video_path = os.path.join(STIMULI_FOLDER,video_name+'.mp4')
         corners_video = []
@@ -257,7 +243,8 @@ def add_flow():
 
 
 ds2 = add_flow()
-print(ds2)
+ds2.to_csv('file_name.csv')
+#print(ds2)
             
             
 
