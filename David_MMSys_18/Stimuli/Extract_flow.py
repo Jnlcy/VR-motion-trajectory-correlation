@@ -73,7 +73,7 @@ def lucas_kanade_method(video_path):
                 c, d = old.ravel()
                 color = (0, 255, 0) 
                 optical_flow.append([int(idx),time,a,b])
-                mask = cv2.line(mask, (int(a),int (b)), (int(c),int(d)), color, 2)
+                mask = cv2.arrowedLine(mask, (int(a),int (b)), (int(c),int(d)), color, 2)
                 frame = cv2.circle(frame, (int(a),int(b) ), 5, color, -1)
             img = cv2.add(frame, mask)
             cv2.imshow("frame.jpg", img)
@@ -97,7 +97,7 @@ def lucas_kanade_method(video_path):
 #def viewport_filer()
 def main():
 
-    path = os.path.join(STIMULI_FOLDER,'1_PortoRiverside.mp4')
+    path = os.path.join(STIMULI_FOLDER,'4_Ocean.mp4')
 
     flow=lucas_kanade_method(path)
     print(flow)

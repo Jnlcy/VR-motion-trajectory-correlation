@@ -14,6 +14,7 @@ VER_MARGIN = degrees_to_radian(90 / 2)
 HEIGHT=1920
 WIDTH=3840
 STIMULI_FOLDER = './David_MMSys_18/Stimuli'
+OUTPUT_FOLDER_FLOW ='./David_MMSys_18/Flows'
 
 _fov_points = dict()
 _fov_polys = dict()
@@ -217,10 +218,12 @@ def flow_filter(mask,frame,new,old,corners):
     return flow,mask,frame
 
 def add_flow():
+
     ds = load_data()
     #print(ds)
     ds2 = ds.assign(Corners = None,Optical_flow =None)
-    ds2 = ds2.head(1)
+   
+    
     for i in range(len(ds2)):
         #print(i)
         traces,video_name = get_traces(ds,i)
@@ -234,7 +237,7 @@ def add_flow():
             t = traces[j][0]
             corners_video.append([t,corners])
             flow = compare_lucas_kanade_method(video_path,t,corners)
-            flow_video.append([t,flow])
+            flow_video.append([flow])
         #add flow and traces into the dataset
         ds2['Corners'][i] = corners_video
         ds2['Optical_flow'][i]=flow_video
@@ -242,8 +245,16 @@ def add_flow():
     return(ds2)
 
 
+
+
+
+
+        
+
 ds2 = add_flow()
-ds2.to_csv('file_name.csv')
+ds2.to_csv('Optical Flow',header =['traces','Corners','Optical_flow'])
+
+
 #print(ds2)
             
             
