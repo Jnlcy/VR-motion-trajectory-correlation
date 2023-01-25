@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import cv2 as cv
 import os
-from spherical_geometry import polygon
+
 from Utils import *
 from nfov import *
 
@@ -15,6 +15,7 @@ HEIGHT=1920
 WIDTH=3840
 STIMULI_FOLDER = './David_MMSys_18/Stimuli'
 OUTPUT_FOLDER_FLOW ='./David_MMSys_18/Flows'
+VIDEOS = ['1_PortoRiverside', '2_Diner', '3_PlanEnergyBioLab', '4_Ocean', '5_Waterpark', '6_DroneFlight', '7_GazaFishermen', '8_Sofa', '9_MattSwift', '10_Cows', '11_Abbottsford', '12_TeatroRegioTorino', '13_Fountain', '14_Warship', '15_Cockpit', '16_Turtle', '17_UnderwaterPark', '18_Bar', '19_Touvet']
 
 _fov_points = dict()
 _fov_polys = dict()
@@ -44,6 +45,7 @@ def load_data():
     # df with (dataset, user, video, times, traces)
                 # times has only time-stamps
                 # traces has only x, y, z (in 3d coordinates)
+    print(dataset)
     data = [('david',
             'david' + '_' + user,
              video,
@@ -83,7 +85,7 @@ def fov_points(trace) -> np.ndarray:
 
 
 
-def compare_lucas_kanade_method(video_path,t,corners):
+def compare_lucas_kanade_method(video_path,t):
     MILLISECONDS = 1000
     cap = cv.VideoCapture(video_path)
     # params for ShiTomasi corner detection
@@ -143,13 +145,13 @@ def compare_lucas_kanade_method(video_path,t,corners):
         good_old = p0[st == 1]
         
         #filter the useful optical flow
-        filtered_flow,mask,frame=flow_filter(mask,frame,good_new,good_old,corners)
-        #flow_image = cv.add(img,mask)
-        #cv.imshow('flow wih image', flow_image)
+        flow,mask,frame=plotflow(mask,frame,good_new,good_old)
+        flow_image = cv.add(img,mask)
+        cv.imshow('flow wih image', flow_image)
     
         
     cap.release()
-    return filtered_flow
+    return good_old, good_new
 
                  
     #save_optical_flow(flow)
@@ -165,6 +167,19 @@ def ab2xyz(a,b): #project 2d piont onto 2d unit square
     return x,y,z
 
 
+def plotflow(mask,frame,new,old):
+    flow = []
+    for i, (new, old) in enumerate(zip(new, old)):
+        a, b = new.ravel()
+        c, d = old.ravel()
+        # Green color in BGR
+        color = (0, 255, 0)      
+        flow.append([a,b,c,d])
+        mask = cv.arrowedLine(mask, (int(c),int(d)), (int(a),int (b)), color,2)
+        frame = cv.circle(frame, (int(a),int(b) ), 5, color, -1)
+   
+    
+    return flow,mask,frame
 
 def flow_filter(mask,frame,new,old,corners):
     filtered_flow=[]
@@ -217,6 +232,42 @@ def flow_filter(mask,frame,new,old,corners):
     print(flow)
     return flow,mask,frame
 
+def save_flow():
+    for video in VIDEOS:
+        #find the path of the video
+        video_path = os.path.join(STIMULI_FOLDER,video+".mp4")
+        
+        print(video)
+        #compute optical flow of the entire video
+        video_flow = []
+        t=0
+        while t <=19.8:
+            print(t)
+            good_old, good_new = compare_lucas_kanade_method(video_path,t)
+            video_flow.append([t,[good_old,good_new]])
+            t +=0.2
+        
+        video_flow = np.array(video_flow)
+        print(video_flow)
+        flow_path = os.path.join(OUTPUT_FOLDER_FLOW,video)
+        np.save(file=flow_path+'.npy',arr=video_flow)
+        print(video+'optical flow saved ')
+    print('All optical flow saved')
+
+save_flow()    
+
+            
+
+
+
+
+
+        #calculate optical flow of the video
+        
+
+
+
+
 def add_flow():
 
     ds = load_data()
@@ -225,7 +276,7 @@ def add_flow():
    
     
     for i in range(len(ds2)):
-        #print(i)
+        print(i)
         traces,video_name = get_traces(ds,i)
         video_path = os.path.join(STIMULI_FOLDER,video_name+'.mp4')
         corners_video = []
@@ -237,7 +288,8 @@ def add_flow():
             t = traces[j][0]
             corners_video.append([t,corners])
             flow = compare_lucas_kanade_method(video_path,t,corners)
-            flow_video.append([flow])
+            flow_video.append([t,flow])
+            
         #add flow and traces into the dataset
         ds2['Corners'][i] = corners_video
         ds2['Optical_flow'][i]=flow_video
@@ -251,8 +303,8 @@ def add_flow():
 
         
 
-ds2 = add_flow()
-ds2.to_csv('Optical Flow',header =['traces','Corners','Optical_flow'])
+#ds2 = add_flow()
+#ds2.to_csv('Optical Flow')
 
 
 #print(ds2)
@@ -271,35 +323,4 @@ t = traces[10][0]
 print(t)
 filtered_flow = compare_lucas_kanade_method(video_path,2,corners)
 print(filtered_flow)"""
-
-
-
-
-
-
-
-
-            
-
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-    
 
