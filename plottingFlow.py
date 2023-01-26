@@ -74,7 +74,7 @@ def compare_lucas_kanade_method(video_path):
 
     
     
-    for t in [1,4,14]:
+    for t in [1,4,19.78]:
         MILLISECONDS = 1000
         fps = cap.get(cv2.CAP_PROP_FPS)
         dt =1/fps
