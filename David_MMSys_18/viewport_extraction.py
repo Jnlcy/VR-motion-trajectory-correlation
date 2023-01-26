@@ -98,15 +98,13 @@ def compare_lucas_kanade_method(video_path,t):
         maxLevel=2,
         criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT,10, 0.03),
     )
+     
    
-    
-    #fps = cap.get(cv.CAP_PROP_FPS)
-
-
     #create old frame
     cap.set(cv.CAP_PROP_POS_MSEC, float(t*MILLISECONDS))
     ret, old_frame = cap.read()
-    
+    if not ret:
+        return None,None
         
     #convert the frame into grey scale
     old_gray = cv.cvtColor(old_frame, cv.COLOR_BGR2GRAY)
@@ -117,6 +115,8 @@ def compare_lucas_kanade_method(video_path,t):
 
     cap.set(cv.CAP_PROP_POS_MSEC, float(t*MILLISECONDS+200))
     ret, frame = cap.read()
+    if not ret:
+        return None, None
 
     frame_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
     #save frame
@@ -148,6 +148,7 @@ def compare_lucas_kanade_method(video_path,t):
         flow,mask,frame=plotflow(mask,frame,good_new,good_old)
         flow_image = cv.add(img,mask)
         cv.imshow('flow wih image', flow_image)
+        cv.waitKey(25) & 0xFF
     
         
     cap.release()
@@ -181,9 +182,10 @@ def plotflow(mask,frame,new,old):
     
     return flow,mask,frame
 
-def flow_filter(mask,frame,new,old,corners):
-    filtered_flow=[]
-    color = (0, 255, 0)  
+def flow_filter(new,old,corners):
+    old = []
+    new = []
+    
 
     for i, (new, old) in enumerate(zip(new, old)):
         a, b = new.ravel()
@@ -207,32 +209,19 @@ def flow_filter(mask,frame,new,old,corners):
 
          #and (y_lim_down<y_n<y_lim_up)
         if (x_lim_down<=x_n<=x_lim_up) and (y_lim_down<=y_n<=y_lim_up) and(z_lim_down<=z_n<=z_lim_up):
-                
-            
-            # Green color in BGR
-            mask = cv.arrowedLine(mask, (int(c),int(d)), (int(a),int (b)), color,2)
-            frame = cv.circle(frame, (int(a),int(b) ), 5, color, -1)   
-            
-            filtered_flow.append([x_o,y_o,z_o,x_n,y_n,z_n]) 
 
-            #print([a,b,c,d])
-                 
-            #mask = cv.arrowedLine(mask, (int(c),int(d)), (int(a),int(b)),color,1)
-            #print([a,b,c,d])
-            #frame = cv.circle(frame, (int(a),int(b)), 5, color, -1)
-                
+            
+            old.append([ x_o,y_o,z_o])
+            new.append([x_n,y_n,z_n])
+
         else:
             pass
 
-    img= cv.add(frame, mask)
-    cv.imshow("frame.jpg", img)
-    cv.waitKey(25) & 0xFF
-        
-    flow = np.array(filtered_flow)
-    print(flow)
-    return flow,mask,frame
+        old =np.array(old)
+        new = np.array(new)
+    return old,new
 
-def save_flow():
+def save_flow(): #calculate optical flow of the video
     for video in VIDEOS:
         #find the path of the video
         video_path = os.path.join(STIMULI_FOLDER,video+".mp4")
@@ -240,45 +229,52 @@ def save_flow():
         print(video)
         #compute optical flow of the entire video
         video_flow = []
-        t=0
-        while t <=19.8:
-            print(t)
+        timestamps= np.linspace(0,19.8,100)
+
+        for t in timestamps:
             good_old, good_new = compare_lucas_kanade_method(video_path,t)
-            video_flow.append([t,[good_old,good_new]])
-            t +=0.2
-        
-        video_flow = np.array(video_flow)
-        print(video_flow)
-        flow_path = os.path.join(OUTPUT_FOLDER_FLOW,video)
-        np.save(file=flow_path+'.npy',arr=video_flow)
+            if good_old is not None:
+                df = pd.DataFrame(zip(good_old,good_new),columns = ['good_old','good_new'])
+                video_folder = os.path.join(OUTPUT_FOLDER_FLOW,video)
+                if not os.path.exists(video_folder):
+                    os.makedirs(video_folder)
+                path = os.path.join(video_folder,"{:.1f}".format(t))
+                df.to_csv(path,index=False)
+            print('flow at ',"{:.1f}".format(t), ' saved')
         print(video+'optical flow saved ')
     print('All optical flow saved')
 
-save_flow()    
+#save_flow()    
+#test the saving flow function
 
-            
+def load_flow(t,video):
+    video_folder = os.path.join(OUTPUT_FOLDER_FLOW,video)
+    path = os.path.join(video_folder,"{:.1f}".format(t))
+    df = pd.read_csv(path)
+    if df is None:
+        path = os.path.join(video_folder,"{:.1f}".format(t-0.2))
+    old = df['good_old']
+    new = df['good_new']
+
+    return old,new
+
+#test load_flow function    
+#old,new =load_flow(1.0,'18_Bar')
+#print(new)
 
 
 
-
-
-        #calculate optical flow of the video
-        
-
-
-
-
-def add_flow():
+def store_filteredFlow():#add optical flow for each user to the dataframe
 
     ds = load_data()
     #print(ds)
-    ds2 = ds.assign(Corners = None,Optical_flow =None)
+    ds2 = ds.assign(Mean_flow =None)
+    ds2 =ds2.head(2)
    
     
     for i in range(len(ds2)):
         print(i)
         traces,video_name = get_traces(ds,i)
-        video_path = os.path.join(STIMULI_FOLDER,video_name+'.mp4')
         corners_video = []
         flow_video = []
         #iterate through each time stamps and calculate flow 
@@ -286,28 +282,25 @@ def add_flow():
             corners = fov_points(traces[j])   
             print(corners)
             t = traces[j][0]
-            corners_video.append([t,corners])
-            flow = compare_lucas_kanade_method(video_path,t,corners)
-            flow_video.append([t,flow])
+            corners_video.append([corners])
+            old,new =load_flow(t,video_name)
+            old_filtered,new_filtered = flow_filter(old,new,corners)
+            mean = np.average(new_filtered,axis = 0)
+            flow_video.append([t,mean])
+        df = pd.DataFrame(flow_video)
+
             
         #add flow and traces into the dataset
-        ds2['Corners'][i] = corners_video
+        
         ds2['Optical_flow'][i]=flow_video
     
     return(ds2)
 
 
+ds2 = store_filteredFlow()#test add flow
+ds2.to_csv('Optical Flow')#save the new df 
 
-
-
-
-        
-
-#ds2 = add_flow()
-#ds2.to_csv('Optical Flow')
-
-
-#print(ds2)
+print(ds2)
             
             
 
