@@ -52,6 +52,7 @@ def data_tidying(video_name,user,flow):
     for i in enumerate(flow.keys()):
         if flow['x']==None:
             traces = traces.drop(labels = i,axis = 0)
+    flow = flow.dropna(subset ='x')
     
 
 
