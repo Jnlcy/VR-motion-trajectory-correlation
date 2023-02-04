@@ -304,9 +304,13 @@ def save_filteredFlow():#add optical flow for each user to the dataframe
             old_filtered,new_filtered = flow_filter(old,new,corners)
            
             mean = nanmean(new_filtered)
-            flow_video.append([round(t,1),mean])
-            df = pd.DataFrame(flow_video)
-            store_filtered(df,video_name,user)
+            if mean is not np.NaN:
+                x,y,z = mean.ravel()
+                flow_video.append([round(t,1),x,y,z])
+            else:
+                flow_video.append([round(t,1),None,None,None])
+        df = pd.DataFrame(flow_video)
+        store_filtered(df,video_name,user)
          
         #add flow and traces into the dataset
         
@@ -320,6 +324,8 @@ ds2 = save_filteredFlow()#test add flow
 ds2.to_csv('Optical Flow')#save the new df 
 
 print(ds2)
+
+
             
             
 
