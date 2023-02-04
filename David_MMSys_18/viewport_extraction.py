@@ -2,11 +2,11 @@
 #create and store dataset
 import pandas as pd
 import numpy as np
+from ast import literal_eval
 import cv2 as cv
 import os
-
+import argparse
 from Utils import *
-from nfov import *
 
 HOR_DIST = degrees_to_radian(110)
 HOR_MARGIN = degrees_to_radian(110 / 2)
@@ -15,6 +15,7 @@ HEIGHT=1920
 WIDTH=3840
 STIMULI_FOLDER = './David_MMSys_18/Stimuli'
 OUTPUT_FOLDER_FLOW ='./David_MMSys_18/Flows'
+OUTPUT_FOLDER_FILTERED_FLOW = './David_MMSys_18/FilteredFlows'
 VIDEOS = ['1_PortoRiverside', '2_Diner', '3_PlanEnergyBioLab', '4_Ocean', '5_Waterpark', '6_DroneFlight', '7_GazaFishermen', '8_Sofa', '9_MattSwift', '10_Cows', '11_Abbottsford', '12_TeatroRegioTorino', '13_Fountain', '14_Warship', '15_Cockpit', '16_Turtle', '17_UnderwaterPark', '18_Bar', '19_Touvet']
 
 _fov_points = dict()
@@ -45,7 +46,6 @@ def load_data():
     # df with (dataset, user, video, times, traces)
                 # times has only time-stamps
                 # traces has only x, y, z (in 3d coordinates)
-    print(dataset)
     data = [('david',
             'david' + '_' + user,
              video,
@@ -183,11 +183,12 @@ def plotflow(mask,frame,new,old):
     return flow,mask,frame
 
 def flow_filter(new,old,corners):
-    old = []
-    new = []
+    filtered_old = []
+    filtered_new = []
     
 
     for i, (new, old) in enumerate(zip(new, old)):
+        
         a, b = new.ravel()
         c, d = old.ravel()
         
@@ -204,22 +205,21 @@ def flow_filter(new,old,corners):
         z_lim_up = max(corners[:,2])
         z_lim_down = min(corners[:,2])
         
-
+        
         #print([x_lim_up,x_lim_down, y_lim_up,y_lim_down,z_lim_up,z_lim_down])
-
          #and (y_lim_down<y_n<y_lim_up)
         if (x_lim_down<=x_n<=x_lim_up) and (y_lim_down<=y_n<=y_lim_up) and(z_lim_down<=z_n<=z_lim_up):
 
             
-            old.append([ x_o,y_o,z_o])
-            new.append([x_n,y_n,z_n])
+            filtered_old.append([x_o,y_o,z_o])
+            filtered_new.append([x_n,y_n,z_n])
 
         else:
             pass
-
-        old =np.array(old)
-        new = np.array(new)
-    return old,new
+        #print(filtered_old)
+    filtered_old = np.array(filtered_old)
+    filtered_new = np.array(filtered_new)
+    return filtered_old,filtered_new
 
 def save_flow(): #calculate optical flow of the video
     for video in VIDEOS:
@@ -235,11 +235,14 @@ def save_flow(): #calculate optical flow of the video
             good_old, good_new = compare_lucas_kanade_method(video_path,t)
             if good_old is not None:
                 df = pd.DataFrame(zip(good_old,good_new),columns = ['good_old','good_new'])
+                df2 = pd.DataFrame(df.good_old.to_list(),columns = ['old_x','old_y'])
+                df2[['new_x','new_y']] = pd.DataFrame(df.good_new.to_list(),index= df2.index)
+
                 video_folder = os.path.join(OUTPUT_FOLDER_FLOW,video)
                 if not os.path.exists(video_folder):
                     os.makedirs(video_folder)
                 path = os.path.join(video_folder,"{:.1f}".format(t))
-                df.to_csv(path,index=False)
+                df2.to_csv(path,index=False)
             print('flow at ',"{:.1f}".format(t), ' saved')
         print(video+'optical flow saved ')
     print('All optical flow saved')
@@ -250,11 +253,11 @@ def save_flow(): #calculate optical flow of the video
 def load_flow(t,video):
     video_folder = os.path.join(OUTPUT_FOLDER_FLOW,video)
     path = os.path.join(video_folder,"{:.1f}".format(t))
-    df = pd.read_csv(path)
+    df = pd.read_csv(path,index_col=False )
     if df is None:
         path = os.path.join(video_folder,"{:.1f}".format(t-0.2))
-    old = df['good_old']
-    new = df['good_new']
+    old = df[['old_x','old_y']].to_numpy()
+    new = df[['new_x','new_y']].to_numpy()
 
     return old,new
 
@@ -262,42 +265,58 @@ def load_flow(t,video):
 #old,new =load_flow(1.0,'18_Bar')
 #print(new)
 
+def nanmean(a):
+    if a.size == 0:
+        return np.NaN
+    else:
+        return np.nanmean(a,axis = 0)
 
 
-def store_filteredFlow():#add optical flow for each user to the dataframe
+def store_filtered(df,video_name,user):#save filtered flow
+    video_folder = os.path.join(OUTPUT_FOLDER_FILTERED_FLOW,video_name)
+    if not os.path.exists(video_folder):
+        os.makedirs(video_folder)
+    path = os.path.join(video_folder, user)
+    df.to_csv(path, header=False, index=False)
+    
+
+def save_filteredFlow():#add optical flow for each user to the dataframe
 
     ds = load_data()
     #print(ds)
     ds2 = ds.assign(Mean_flow =None)
-    ds2 =ds2.head(2)
+   
    
     
     for i in range(len(ds2)):
-        print(i)
+        
         traces,video_name = get_traces(ds,i)
+        user = ds2.loc[i]['ds_user']
         corners_video = []
         flow_video = []
         #iterate through each time stamps and calculate flow 
         for j in range(len(traces)-1):
             corners = fov_points(traces[j])   
-            print(corners)
             t = traces[j][0]
             corners_video.append([corners])
             old,new =load_flow(t,video_name)
-            old_filtered,new_filtered = flow_filter(old,new,corners)
-            mean = np.average(new_filtered,axis = 0)
-            flow_video.append([t,mean])
-        df = pd.DataFrame(flow_video)
-
             
+            old_filtered,new_filtered = flow_filter(old,new,corners)
+           
+            mean = nanmean(new_filtered)
+            flow_video.append([round(t,1),mean])
+            df = pd.DataFrame(flow_video)
+            store_filtered(df,video_name,user)
+         
         #add flow and traces into the dataset
         
-        ds2['Optical_flow'][i]=flow_video
+        ds2['Mean_flow'][i]=flow_video
+        print('Finish filtering '+user+','+video_name)
     
     return(ds2)
 
 
-ds2 = store_filteredFlow()#test add flow
+ds2 = save_filteredFlow()#test add flow
 ds2.to_csv('Optical Flow')#save the new df 
 
 print(ds2)
