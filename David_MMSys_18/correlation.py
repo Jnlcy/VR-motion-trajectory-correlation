@@ -39,8 +39,9 @@ def pearson_local(flow,traces):
 
 
 def load_filtered_flow(video_name,user):
+    user_name = 'david_'+str(user)
     video_folder = os.path.join(OUTPUT_FOLDER_FILTERED_FLOW,video_name)
-    path = os.path.join(video_folder, user)
+    path = os.path.join(video_folder, user_name)
     headers = ['Time','x','y','z']
     flow = pd.read_csv(path, header=None)
     flow.columns = headers
@@ -48,14 +49,16 @@ def load_filtered_flow(video_name,user):
 
 def data_tidying(video_name,user,flow):
     df = vp.load_data()
-    traces = df.loc[:,'traces']
+    traces = df[video_name][user].loc[:,'traces']
     for i in enumerate(flow.keys()):
         if flow['x']==None:
             traces = traces.drop(labels = i,axis = 0)
     flow = flow.dropna(subset ='x')
+    return traces,flow
     
 
-
+flow =load_filtered_flow('1_PortoRiverside',2)
+print(flow)
 
 
 
