@@ -7,11 +7,14 @@ import scipy.stats as stats
 import random as rd
 
 import viewport_extraction as vp
+from mpl_toolkits import mplot3d
 
 STIMULI_FOLDER = './David_MMSys_18/Stimuli'
 OUTPUT_FOLDER_FLOW ='./David_MMSys_18/Flows'
 OUTPUT_FOLDER_FILTERED_FLOW = './David_MMSys_18/FilteredFlows'
-VIDEOS = ['1_PortoRiverside', '2_Diner', '3_PlanEnergyBioLab', '4_Ocean', '5_Waterpark', '6_DroneFlight', '7_GazaFishermen', '8_Sofa', '9_MattSwift', '10_Cows', '11_Abbottsford', '12_TeatroRegioTorino', '13_Fountain', '14_Warship', '15_Cockpit', '16_Turtle', '17_UnderwaterPark', '18_Bar', '19_Touvet']
+VIDEOS = ['1_PortoRiverside', '2_Diner',  '4_Ocean', '5_Waterpark', '6_DroneFlight',
+            '8_Sofa', '9_MattSwift', '10_Cows', '12_TeatroRegioTorino', '13_Fountain', '14_Warship',
+            '15_Cockpit', '16_Turtle', '17_UnderwaterPark', '18_Bar', '19_Touvet']
 
 
 def pearson_global(flow,traces):
@@ -70,8 +73,8 @@ def data_tidying(video_name,user):#this function drop all unavailable values in 
         #the last timestamps doesn't exit so drop the last traces
         traces=traces.drop(index = 99)
     
-    traces = traces[['x','y','z']].to_numpy()
-    flow = flow[['x','y','z']].to_numpy()
+    traces = traces[['Time','x','y','z']].to_numpy()
+    flow = flow[['Time','x','y','z']].to_numpy()
     print('Dropped all unavialble cells')
    
     return traces,flow
@@ -95,34 +98,42 @@ def plot_ramdom_pearson():
     # Fixing random state for reproducibility
     np.random.seed(7)
     users = np.arange(57)
-    video_sample = rd.choices(VIDEOS,k=)
-    user_sample = rd.choices(users, k = 3)
-    count =1
-    plt.figure(figsize=(10, 6),tight_layout=True) 
-    for video_name in video_sample:      
-        for user in user_sample:
-            #print(user)
-            #print(video_name)
-            traces,flow  = data_tidying(video_name,user)
-            flow = np.ndarray.flatten(flow)
-            traces=np.ndarray.flatten(traces)
-            r, p = stats.pearsonr(flow,traces)
+    video_sample = rd.choice(VIDEOS)
+    user_sample = rd.choice(users)
 
+    
+    #print(user)
+    #print(video_name)
+    traces,flow  = data_tidying(video_sample,user_sample)
+    
+    t,flow_x,flow_y,flow_z = flow[:,0],flow[:,1],flow[:,2],flow[:,3]
+    trace_x,trace_y,trace_z = traces[:,1],traces[:,2],traces[:,3]
+    
 
-            plt.subplot(3,3,count)
-            plt.plot(flow,traces,'o',ms=2)    
+    #create a figure
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+    
+    title = 'User '+str(user_sample)+' watching '+video_sample
+    theta_t,phi_t,theta_f, phi_f= np.zeros_like(t),np.zeros_like(t),np.zeros_like(t),np.zeros_like(t)
+    for i in range(len(t)):
+        theta_t[i] ,phi_t[i] = cartesian_to_eulerian(trace_x[i],trace_y[i],trace_z[i]) 
+        theta_f[i], phi_f[i]= cartesian_to_eulerian(flow_x[i],flow_y[i],flow_z[i]) 
+
+    ax.plot3D(t,theta_t ,phi_t,'grey',label ='User head position')  
+    ax.scatter3D(t,theta_f, phi_f,label = 'Mean optical flow end points')
+    
+    ax.set_xlabel('time(second)')
+    ax.set_ylabel('theta')
+    ax.set_zlabel('phi')
+    ax.set_title(title)
+    ax.legend()
+
             
-            #setting title
-            plt.title(video_name+' '+str(user))
-            #setting axix label
-            plt.xlabel('optical flow',loc='left')
-            plt.ylabel('traces')
-            plt.grid()
-            count+=1
-    plt.suptitle('Head Motion against Flow',weight='bold')
-    path=os.path.join(output_folder,'Scatter')
-    plt.savefig(path)
-    plt.show()
+    path=os.path.join(output_folder,title)
+    fig.savefig(path)
+    fig.show()
     return
             
 
