@@ -1,8 +1,10 @@
 import pandas as pd
 import numpy as np
+from Utils import *
 import os
 import matplotlib.pyplot as plt
 import scipy.stats as stats
+import random as rd
 
 import viewport_extraction as vp
 
@@ -28,22 +30,6 @@ def pearson_global(flow,traces):
 
     return r,p
 
-def pearson_local(flow,traces):
-    flow = np.ndarray.flatten(flow)
-    traces=np.ndarray.flatten(traces)
-    data = [{flow},{traces}]
-    df=pd.DataFrame(data,columns=['flow', 'traces'])
-    r_window_size = 120
-    # Interpolate missing data.
-    df_interpolated = df.interpolate()
-    # Compute rolling window synchrony
-    rolling_r = df_interpolated['S1_Joy'].rolling(window=r_window_size, center=True).corr(df_interpolated['S2_Joy'])
-    f,ax=plt.subplots(2,1,figsize=(14,6),sharex=True)
-    df.rolling(window=30,center=True).median().plot(ax=ax[0])
-    ax[0].set(xlabel='Frame',ylabel='Smiling Evidence')
-    rolling_r.plot(ax=ax[1])
-    ax[1].set(xlabel='Frame',ylabel='Pearson r')
-    plt.suptitle("Smiling data and rolling window correlation")
 
 def load_filtered_flow(video_name,user):
     user_name = 'david_'+str(user)
@@ -53,6 +39,13 @@ def load_filtered_flow(video_name,user):
     flow = pd.read_csv(path, header=None)
     flow.columns = headers
     return flow
+
+def xyz2ab(x,y,z):
+    theta,phi = cartesian_to_eulerian(x,y,z)
+    theta,phi = eulerian_in_range(theta, phi)
+    a=theta/(2*np.pi)
+    b=phi/np.pi
+    return a,b
 
 def data_tidying(video_name,user):#this function drop all unavailable values in corresponding flow and traces
     user_name = 'david_'+str(user)
@@ -85,11 +78,10 @@ def data_tidying(video_name,user):#this function drop all unavailable values in 
     
 
 def plot_pearson_global():
+    user_values = list(range(0,57))
     for video_name in VIDEOS:
         #print(video_name)
         r_values = []
-        user_values = list(range(0,57))
-        
         for user in user_values:
             #print(user)
             #print(video_name)
@@ -97,7 +89,47 @@ def plot_pearson_global():
             r,p = pearson_global(new_flow,traces)
             r_values.append(r)
 
+
+def plot_ramdom_pearson():
+    output_folder = './David_MMSys_18/Pearson'
+    # Fixing random state for reproducibility
+    np.random.seed(7)
+    users = np.arange(57)
+    video_sample = rd.choices(VIDEOS,k=)
+    user_sample = rd.choices(users, k = 3)
+    count =1
+    plt.figure(figsize=(10, 6),tight_layout=True) 
+    for video_name in video_sample:      
+        for user in user_sample:
+            #print(user)
+            #print(video_name)
+            traces,flow  = data_tidying(video_name,user)
+            flow = np.ndarray.flatten(flow)
+            traces=np.ndarray.flatten(traces)
+            r, p = stats.pearsonr(flow,traces)
+
+
+            plt.subplot(3,3,count)
+            plt.plot(flow,traces,'o',ms=2)    
             
+            #setting title
+            plt.title(video_name+' '+str(user))
+            #setting axix label
+            plt.xlabel('optical flow',loc='left')
+            plt.ylabel('traces')
+            plt.grid()
+            count+=1
+    plt.suptitle('Head Motion against Flow',weight='bold')
+    path=os.path.join(output_folder,'Scatter')
+    plt.savefig(path)
+    plt.show()
+    return
+            
+
+
+
+
+
 '''plt.scatter(user_values,r_values,'o')    
         #setting title
         plt.title(video_name)
@@ -112,4 +144,4 @@ def plot_pearson_global():
 
 #traces,new_flow = data_tidying('1_PortoRiverside',2)
 #r,p = pearson_global(new_flow,traces)
-plot_pearson_global()
+plot_ramdom_pearson()
