@@ -16,7 +16,7 @@ WIDTH=3840
 STIMULI_FOLDER = './David_MMSys_18/Stimuli'
 OUTPUT_FOLDER_FLOW ='./David_MMSys_18/Flows'
 OUTPUT_FOLDER_FILTERED_FLOW = './David_MMSys_18/FilteredFlows'
-VIDEOS = ['1_PortoRiverside', '2_Diner', '3_PlanEnergyBioLab', '4_Ocean', '5_Waterpark', '6_DroneFlight', '7_GazaFishermen', '8_Sofa', '9_MattSwift', '10_Cows', '11_Abbottsford', '12_TeatroRegioTorino', '13_Fountain', '14_Warship', '15_Cockpit', '16_Turtle', '17_UnderwaterPark', '18_Bar', '19_Touvet']
+VIDEOS = ['1_PortoRiverside', '2_Diner', '3_PlanEnergyBioLab', '4_Ocean', '5_Waterpark', '6_DroneFlight', '7_GazaFishermen', '8_Sofa', '9_MattSwift', '10_Cows',  '12_TeatroRegioTorino', '13_Fountain', '14_Warship', '15_Cockpit', '16_Turtle', '17_UnderwaterPark', '18_Bar', '19_Touvet']
 
 _fov_points = dict()
 _fov_polys = dict()
@@ -183,7 +183,7 @@ def plotflow(mask,frame,new,old):
     return flow,mask,frame
 
 def flow_filter(new,old,corners):
-    filtered_old = []
+    flow_vector = []
     filtered_new = []
     
 
@@ -210,16 +210,19 @@ def flow_filter(new,old,corners):
          #and (y_lim_down<y_n<y_lim_up)
         if (x_lim_down<=x_n<=x_lim_up) and (y_lim_down<=y_n<=y_lim_up) and(z_lim_down<=z_n<=z_lim_up):
 
-            
-            filtered_old.append([x_o,y_o,z_o])
+        
             filtered_new.append([x_n,y_n,z_n])
+
+            x_v,y_v,z_v = x_n-x_o,y_n-y_o,z_n-z_o
+            flow_vector.append([x_v,y_v,z_v])
+
 
         else:
             pass
         #print(filtered_old)
-    filtered_old = np.array(filtered_old)
+    flow_vector = np.array(flow_vector)
     filtered_new = np.array(filtered_new)
-    return filtered_old,filtered_new
+    return flow_vector,filtered_new
 
 def save_flow(): #calculate optical flow of the video
     for video in VIDEOS:
@@ -293,7 +296,8 @@ def save_filteredFlow():#add optical flow for each user to the dataframe
         traces,video_name = get_traces(ds,i)
         user = ds2.loc[i]['ds_user']
         corners_video = []
-        flow_video = []
+        endpoint_video = []
+        flow_video=[]
         #iterate through each time stamps and calculate flow 
         for j in range(len(traces)-1):
             corners = fov_points(traces[j])   
@@ -301,15 +305,27 @@ def save_filteredFlow():#add optical flow for each user to the dataframe
             corners_video.append([corners])
             old,new =load_flow(t,video_name)
             
-            old_filtered,new_filtered = flow_filter(old,new,corners)
+            flow_vector,new_filtered = flow_filter(old,new,corners)
+            
            
-            mean = nanmean(new_filtered)
-            if mean is not np.NaN:
-                x,y,z = mean.ravel()
-                flow_video.append([round(t,1),x,y,z])
+            mean_new = nanmean(new_filtered)
+            mean_flow = nanmean(flow_vector)
+            if mean_new is not np.NaN:
+                x,y,z = mean_new.ravel()
+                x_f,y_f,z_f = mean_flow .ravel()
+                endpoint_video.append([round(t,1),x,y,z])
+                flow_video.append([x,y,z])
             else:
-                flow_video.append([round(t,1),None,None,None])
-        df = pd.DataFrame(flow_video)
+                endpoint_video.append([round(t,1),None,None,None])
+                flow_video.append([None,None,None])
+
+
+            
+        df1 = pd.DataFrame(endpoint_video)
+        df2 = pd.DataFrame(flow_video)
+        df = pd.concat([df1,df2.reindex(df1.index)], axis=1)
+        print(df)
+
         store_filtered(df,video_name,user)
          
         #add flow and traces into the dataset
@@ -320,7 +336,7 @@ def save_filteredFlow():#add optical flow for each user to the dataframe
     return(ds2)
 
 
-#ds2 = save_filteredFlow()#test add flow
+save_filteredFlow()#test add flow
 #ds2.to_csv('Optical Flow')#save the new df 
 
 #print(ds2)
