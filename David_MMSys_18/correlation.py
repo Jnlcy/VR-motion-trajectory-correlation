@@ -33,12 +33,20 @@ def pearson_global(flow,traces):
 
     return r,p
 
+def user_attraction(flows,traces):
+    user_attraction = np.zeros(len(flows[:]))
+    for i in range(len(flows[:])-1):
+        userAtr =  np.dot(flows[i+1],traces[i+1]-traces[i])
+        user_attraction[i] = userAtr
+    return np.mean(user_attraction)
+
+
 
 def load_filtered_flow(video_name,user):
     user_name = 'david_'+str(user)
     video_folder = os.path.join(OUTPUT_FOLDER_FILTERED_FLOW,video_name)
     path = os.path.join(video_folder, user_name)
-    headers = ['Time','x','y','z']
+    headers = ['Time','x_e','y_e','z_e','x_f','y_f','z_f']
     flow = pd.read_csv(path, header=None)
     flow.columns = headers
     return flow
@@ -63,9 +71,9 @@ def data_tidying(video_name,user):#this function drop all unavailable values in 
     #store traces in temporaray dataframe
     tmpdf = pd.DataFrame(traces[0],columns = ['Time','x','y','z'])
     #print(tmpdf)
-    null_list = flow[flow['x'].isnull()].index.tolist()
+    null_list = flow[flow['x_e'].isnull()].index.tolist()
     traces = tmpdf.drop(index = null_list)
-    flow = flow.dropna(subset ='x')
+    flow = flow.dropna(subset ='x_e')
     
     if len(traces) ==len(flow):
         pass
@@ -73,11 +81,13 @@ def data_tidying(video_name,user):#this function drop all unavailable values in 
         #the last timestamps doesn't exit so drop the last traces
         traces=traces.drop(index = 99)
     
-    traces = traces[['Time','x','y','z']].to_numpy()
-    flow = flow[['Time','x','y','z']].to_numpy()
-    print('Dropped all unavialble cells')
+    time = traces[['Time']].to_numpy()
+    traces = traces[['x','y','z']].to_numpy()
+    endpoint = flow[['x_e','y_e','z_e']].to_numpy()
+    flow_vector = flow[['x_f','y_f','z_f']].to_numpy()
+    #print('Dropped all unavialble cells')
    
-    return traces,flow
+    return time, traces,endpoint,flow_vector
     
 
 def plot_pearson_global():
@@ -93,7 +103,7 @@ def plot_pearson_global():
             r_values.append(r)
 
 
-def plot_ramdom_pearson():
+def plot_random_pearson():
     output_folder = './David_MMSys_18/Pearson'
     # Fixing random state for reproducibility
     np.random.seed(7)
@@ -104,7 +114,7 @@ def plot_ramdom_pearson():
     
     #print(user)
     #print(video_name)
-    traces,flow  = data_tidying(video_sample,user_sample)
+    traces,flow,vector  = data_tidying(video_sample,user_sample)
     
     t,flow_x,flow_y,flow_z = flow[:,0],flow[:,1],flow[:,2],flow[:,3]
     trace_x,trace_y,trace_z = traces[:,1],traces[:,2],traces[:,3]
@@ -136,7 +146,34 @@ def plot_ramdom_pearson():
     fig.show()
     return
             
+def plotH_attraction(video_name):
+    users = np.arange(57)
+    user_atr  = []
+    for i in range(len(users)):
+        time,traces,endpoint,flow_vector = data_tidying(video_name,users[i])
+    
+        atr = user_attraction(flow_vector,traces)
+        print(str(users[i])+" 's overall attraction to movement is "+ str(atr))
+        user_atr.append(atr) 
 
+    #calculate min and max attraction
+    user_min=user_atr.index(min(user_atr))
+    user_max=user_atr.index(max(user_atr))
+    #plot
+
+    plt.hist(user_atr,bins = 5, edgecolor="white")
+    plt.title("User's attraction distribution for "+video_name)
+    plt.xlabel('User Attraction to Movement')
+    plt.ylabel('Count')
+    text = 'Highest attraction: user '+str(user_max)+'\nLowest attrction: user '+str(user_min)
+    print(text)
+
+    plt.show()
+    return
+   
+    
+#test plotH
+plotH_attraction('1_PortoRiverside')
 
 
 
@@ -155,4 +192,4 @@ def plot_ramdom_pearson():
 
 #traces,new_flow = data_tidying('1_PortoRiverside',2)
 #r,p = pearson_global(new_flow,traces)
-plot_ramdom_pearson()
+#plot_random_pearson()
