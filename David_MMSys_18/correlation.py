@@ -87,20 +87,7 @@ def data_tidying(video_name,user):#this function drop all unavailable values in 
     flow_vector = flow[['x_f','y_f','z_f']].to_numpy()
     #print('Dropped all unavialble cells')
    
-    return time, traces,endpoint,flow_vector
-    
-
-def plot_pearson_global():
-    user_values = list(range(0,57))
-    for video_name in VIDEOS:
-        #print(video_name)
-        r_values = []
-        for user in user_values:
-            #print(user)
-            #print(video_name)
-            traces,new_flow  = data_tidying(video_name,user)
-            r,p = pearson_global(new_flow,traces)
-            r_values.append(r)
+    return time, traces,endpoint,flow_vector   
 
 
 def plot_random_pearson():
@@ -159,21 +146,81 @@ def plotH_attraction(video_name):
     #calculate min and max attraction
     user_min=user_atr.index(min(user_atr))
     user_max=user_atr.index(max(user_atr))
-    #plot
+    #plot histgram
 
-    plt.hist(user_atr,bins = 5, edgecolor="white")
-    plt.title("User's attraction distribution for "+video_name)
-    plt.xlabel('User Attraction to Movement')
-    plt.ylabel('Count')
+    f1,ax = plt.subplots()
+    ax.hist(user_atr,bins = 5, edgecolor="white")
+    ax.set_title("User's attraction distribution for "+video_name)
+    ax.set_xlabel('User Attraction to Movement')
+    ax.set_ylabel('Count')
     text = 'Highest attraction: user '+str(user_max)+'\nLowest attrction: user '+str(user_min)
     print(text)
+    plt.show()
+    
+
+    #spacial visualise correlataion
+    #f2 = trace_flow_comparison(video_name,user_min,user_max)
+    #f2.show()
+
+
+    return
+
+def trace_flow_comparison(video_name,user_min,user_max):
+    #create figure
+    fig,(ax1,ax2) = plt.subplots(1,2,figsize=(10, 4),tight_layout=True)    
+
+    #lowest attracttion
+    time,traces,endpoint,flow_vector = data_tidying(video_name,user_min)
+    flow_x,flow_y,flow_z = flow_vector[:,0],flow_vector[:,1],flow_vector[:,2]
+    trace_x,trace_y,trace_z = traces[:,0],traces[:,1],traces[:,2]
+
+    theta_t,phi_t,theta_f, phi_f= np.zeros_like(flow_x),np.zeros_like(flow_x),np.zeros_like(flow_x),np.zeros_like(flow_x)
+    for i in range(len(flow_x)):
+        theta_t[i] ,phi_t[i] = cartesian_to_eulerian(trace_x[i],trace_y[i],trace_z[i]) 
+        theta_f[i], phi_f[i]= cartesian_to_eulerian(flow_x[i],flow_y[i],flow_z[i]) 
+
+    ax1.plot(theta_t ,phi_t,'o--',ms=4, label ='User head position')
+    ax1.quiver(theta_t ,phi_t,theta_f,phi_f,label = 'Main optical flow')
+    ax1.set_xlabel('theta')
+    ax1.set_ylabel('phi')
+    
+    ax1.set_title('High Attraction: User '+str(user_max))
+    ax1.legend()
+
+
+    time,traces,endpoint,flow_vector = data_tidying(video_name,user_max)
+    flow_x,flow_y,flow_z = flow_vector[:,0],flow_vector[:,1],flow_vector[:,2]
+    trace_x,trace_y,trace_z = traces[:,0],traces[:,1],traces[:,2]
+
+    theta_t,phi_t,theta_f, phi_f= np.zeros_like(flow_x),np.zeros_like(flow_x),np.zeros_like(flow_x),np.zeros_like(flow_x)
+    for i in range(len(flow_x)):
+        theta_t[i] ,phi_t[i] = cartesian_to_eulerian(trace_x[i],trace_y[i],trace_z[i]) 
+        theta_f[i], phi_f[i]= cartesian_to_eulerian(flow_x[i],flow_y[i],flow_z[i]) 
+
+    ax2.plot(theta_t ,phi_t,'o--',ms = 4, label ='User head position')
+    ax2.quiver(theta_t ,phi_t,theta_f,phi_f,label = 'Main optical flow')
+    ax2.set_xlabel('theta')
+    
+    ax2.set_ylabel('phi')
+    ax2.set_title('Low Attraction: User '+str(user_min))
+    ax2.legend()
 
     plt.show()
+
     return
-   
+
+
+trace_flow_comparison('17_UnderwaterPark',2,34)
+
+
+
+
+    
+
+
     
 #test plotH
-plotH_attraction('1_PortoRiverside')
+#plotH_attraction('17_UnderwaterPark')
 
 
 
