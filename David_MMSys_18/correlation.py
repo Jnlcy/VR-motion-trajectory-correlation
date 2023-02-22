@@ -3,6 +3,7 @@ import numpy as np
 from Utils import *
 import os
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import scipy.stats as stats
 import random as rd
 
@@ -167,6 +168,7 @@ def plotH_attraction(video_name):
 
 def trace_flow_comparison(video_name,user_min,user_max):
     #create figure
+    mpl.style.use('default')
     fig,(ax1,ax2) = plt.subplots(1,2,figsize=(10, 4),tight_layout=True)    
 
     #lowest attracttion
@@ -177,15 +179,20 @@ def trace_flow_comparison(video_name,user_min,user_max):
     theta_t,phi_t,theta_f, phi_f= np.zeros_like(flow_x),np.zeros_like(flow_x),np.zeros_like(flow_x),np.zeros_like(flow_x)
     for i in range(len(flow_x)):
         theta_t[i] ,phi_t[i] = cartesian_to_eulerian(trace_x[i],trace_y[i],trace_z[i]) 
+        theta_t[i] ,phi_t[i] = eulerian_in_range(theta_t[i] ,phi_t[i])
         theta_f[i], phi_f[i]= cartesian_to_eulerian(flow_x[i],flow_y[i],flow_z[i]) 
+        
 
-    ax1.plot(theta_t ,phi_t,'o--',ms=4, label ='User head position')
-    ax1.quiver(theta_t ,phi_t,theta_f,phi_f,label = 'Main optical flow')
+    ax1.quiver(theta_t[:-1] ,phi_t[:-1],theta_t[1:]-theta_t[:-1],phi_t[1:]-phi_t[:-1]
+    ,color= 'C2', scale_units='xy', angles = 'xy',scale=1,  label ='User head position')
+    ax1.quiver(theta_t ,phi_t,theta_f,phi_f,color ='C0',width = 0.005,label = 'Main optical flow')
     ax1.set_xlabel('theta')
     ax1.set_ylabel('phi')
     
     ax1.set_title('High Attraction: User '+str(user_max))
     ax1.legend()
+    ax1.set_xlim([-np.pi, np.pi])
+    ax1.set_ylim([-np.pi/2.0,np.pi/2.0])
 
 
     time,traces,endpoint,flow_vector = data_tidying(video_name,user_max)
@@ -195,15 +202,21 @@ def trace_flow_comparison(video_name,user_min,user_max):
     theta_t,phi_t,theta_f, phi_f= np.zeros_like(flow_x),np.zeros_like(flow_x),np.zeros_like(flow_x),np.zeros_like(flow_x)
     for i in range(len(flow_x)):
         theta_t[i] ,phi_t[i] = cartesian_to_eulerian(trace_x[i],trace_y[i],trace_z[i]) 
+        theta_t[i] ,phi_t[i] = eulerian_in_range(theta_t[i] ,phi_t[i])
         theta_f[i], phi_f[i]= cartesian_to_eulerian(flow_x[i],flow_y[i],flow_z[i]) 
+        
 
-    ax2.plot(theta_t ,phi_t,'o--',ms = 4, label ='User head position')
-    ax2.quiver(theta_t ,phi_t,theta_f,phi_f,label = 'Main optical flow')
+
+
+    ax2.quiver(theta_t[:-1] ,phi_t[:-1],theta_t[1:]-theta_t[:-1],phi_t[1:]-phi_t[:-1],color = 'C2',
+    scale_units='xy', angles = 'xy',scale=1, label ='User head position')
+    ax2.quiver(theta_t ,phi_t,theta_f,phi_f,color='C0',width = 0.005, label = 'Main optical flow')
     ax2.set_xlabel('theta')
-    
     ax2.set_ylabel('phi')
     ax2.set_title('Low Attraction: User '+str(user_min))
     ax2.legend()
+    plt.xlim([-np.pi, np.pi])
+    plt.ylim([-np.pi/2.0,np.pi/2.0])
 
     plt.show()
 
