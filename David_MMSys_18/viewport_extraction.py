@@ -253,7 +253,7 @@ def save_flow(): #calculate optical flow of the video
 #save_flow()    
 #test the saving flow function
 
-def load_flow(t,video):
+def load_single_flow(t,video):
     video_folder = os.path.join(OUTPUT_FOLDER_FLOW,video)
     path = os.path.join(video_folder,"{:.1f}".format(t))
     df = pd.read_csv(path,index_col=False )
@@ -264,7 +264,37 @@ def load_flow(t,video):
 
     return old,new
 
-#test load_flow function    
+def load_flow():
+    list_of_videos = [o for o in os.listdir(OUTPUT_FOLDER_FLOW) if not o.endswith('.gitkeep')]
+    dataset = {}
+    for video in list_of_videos:
+       
+        for time in [o for o in os.listdir(os.path.join(OUTPUT_FOLDER_FLOW, video)) if not o.endswith('.gitkeep')]:
+           
+            if time not in dataset.keys():
+                dataset[time] = {}
+            
+            path = os.path.join(OUTPUT_FOLDER_FLOW, video, time)
+            data = pd.read_csv(path, header=0)
+            
+            dataset[time][video] = data.values
+    data = [(video,
+             time,
+            dataset[time][video]
+            ) for time in dataset.keys() for video in dataset[time].keys()]
+    
+    tmpdf =  pd.DataFrame(data, columns=[
+                    'video', 'time', 'optical flow'])
+   
+    return tmpdf
+
+#test load_flow function
+#tmpdf = load_flow()
+#print(tmpdf)
+   
+
+
+#test load_single_flow function    
 #old,new =load_flow(1.0,'18_Bar')
 #print(new)
 
@@ -303,7 +333,7 @@ def save_filteredFlow():#add optical flow for each user to the dataframe
             corners = fov_points(traces[j])   
             t = traces[j][0]
             corners_video.append([corners])
-            old,new =load_flow(t,video_name)
+            old,new =load_single_flow(t,video_name)
             
             flow_vector,new_filtered = flow_filter(old,new,corners)
             

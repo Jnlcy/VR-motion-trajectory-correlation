@@ -6,9 +6,12 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import scipy.stats as stats
 import random as rd
+import jenkspy
+import plotly.graph_objects as go
+import plotly.express as px
 
 import viewport_extraction as vp
-from mpl_toolkits import mplot3d
+from typing import Literal
 
 STIMULI_FOLDER = './David_MMSys_18/Stimuli'
 OUTPUT_FOLDER_FLOW ='./David_MMSys_18/Flows'
@@ -16,6 +19,7 @@ OUTPUT_FOLDER_FILTERED_FLOW = './David_MMSys_18/FilteredFlows'
 VIDEOS = ['1_PortoRiverside', '2_Diner',  '4_Ocean', '5_Waterpark', '6_DroneFlight',
             '8_Sofa', '9_MattSwift', '10_Cows', '12_TeatroRegioTorino', '13_Fountain', '14_Warship',
             '15_Cockpit', '16_Turtle', '17_UnderwaterPark', '18_Bar', '19_Touvet']
+ENTROPY_CLASS_COLORS = {'low': 'blue', 'medium': 'green', 'hight': 'red'}
 
 
 def pearson_global(flow,traces):
@@ -37,7 +41,7 @@ def pearson_global(flow,traces):
 def user_attraction(flows,traces):
     user_attraction = np.zeros(len(flows[:]))
     for i in range(len(flows[:])-1):
-        userAtr =  np.dot(flows[i+1],traces[i+1]-traces[i])
+        userAtr =  np.dot(flows[i],traces[i+1]-traces[i])
         user_attraction[i] = userAtr
     return np.mean(user_attraction)
 
@@ -133,8 +137,17 @@ def plot_random_pearson():
     fig.savefig(path)
     fig.show()
     return
-            
-def plotH_attraction(video_name):
+
+
+def get_class_thresholds(data) :
+  _, threshold_medium, threshold_hight, _ = jenkspy.jenks_breaks(data, n_classes=3)
+  return threshold_medium, threshold_hight
+
+def get_class_name(x: float, threshold_medium: float,
+                   threshold_hight: float) -> Literal['low', 'medium', 'hight']:
+  return 'low' if x < threshold_medium else ('medium' if x < threshold_hight else 'hight')
+
+def calc_attraction(video_name):
     users = np.arange(57)
     user_atr  = []
     for i in range(len(users)):
@@ -147,32 +160,51 @@ def plotH_attraction(video_name):
     #calculate min and max attraction
     user_min=user_atr.index(min(user_atr))
     user_max=user_atr.index(max(user_atr))
-    #plot histgram
 
-    f1,ax = plt.subplots()
-    ax.hist(user_atr,bins = 5, edgecolor="white")
-    ax.set_title("User's attraction distribution for "+video_name)
-    ax.set_xlabel('User Attraction to Movement')
-    ax.set_ylabel('Count')
     text = 'Highest attraction: user '+str(user_max)+'\nLowest attrction: user '+str(user_min)
     print(text)
-    plt.show()
+
+    return user_atr
+
+def plotH_attraction(video_name):
+
     
+    atr= np.array(calc_attraction(video_name))
+    threshold_medium, threshold_hight = get_class_thresholds(atr)
+    atr1 =atr [atr<threshold_medium]
+    atr2 =atr[(atr<threshold_hight)  & (atr>=threshold_medium)]
+    atr3 = atr[atr>=threshold_hight]
+    fig = go.Figure()
 
-    #spacial visualise correlataion
-    #f2 = trace_flow_comparison(video_name,user_min,user_max)
-    #f2.show()
+    fig.add_trace(go.Histogram(x=atr1,name = 'low attraction'))
+    fig.add_trace(go.Histogram(x=atr2,name = 'medium attraction'))
+    fig.add_trace(go.Histogram(x=atr3,name = 'high attraction'))
 
+
+    fig.update_layout(
+        title_text=video_name, # title of plot
+        xaxis_title_text='Attraction', # xaxis label
+        yaxis_title_text='Count', # yaxis label
+        barmode = 'stack'
+    
+        ) # gap between bars of the same location coordinates)
+
+
+    fig.show()
+    #plot histgram
 
     return
+    
 
-def trace_flow_comparison(video_name,user_min,user_max):
+
+
+def trace_flow_comparison(video_name,high,low):
     #create figure
     mpl.style.use('default')
     fig,(ax1,ax2) = plt.subplots(1,2,figsize=(10, 4),tight_layout=True)    
 
     #lowest attracttion
-    time,traces,endpoint,flow_vector = data_tidying(video_name,user_min)
+    time,traces,endpoint,flow_vector = data_tidying(video_name,low)
     flow_x,flow_y,flow_z = flow_vector[:,0],flow_vector[:,1],flow_vector[:,2]
     trace_x,trace_y,trace_z = traces[:,0],traces[:,1],traces[:,2]
 
@@ -189,13 +221,13 @@ def trace_flow_comparison(video_name,user_min,user_max):
     ax1.set_xlabel('theta')
     ax1.set_ylabel('phi')
     
-    ax1.set_title('High Attraction: User '+str(user_max))
+    ax1.set_title('Low Attraction: User '+str(low))
     ax1.legend()
     ax1.set_xlim([-np.pi, np.pi])
     ax1.set_ylim([-np.pi/2.0,np.pi/2.0])
 
 
-    time,traces,endpoint,flow_vector = data_tidying(video_name,user_max)
+    time,traces,endpoint,flow_vector = data_tidying(video_name,high)
     flow_x,flow_y,flow_z = flow_vector[:,0],flow_vector[:,1],flow_vector[:,2]
     trace_x,trace_y,trace_z = traces[:,0],traces[:,1],traces[:,2]
 
@@ -213,7 +245,7 @@ def trace_flow_comparison(video_name,user_min,user_max):
     ax2.quiver(theta_t ,phi_t,theta_f,phi_f,color='C0',width = 0.005, label = 'Main optical flow')
     ax2.set_xlabel('theta')
     ax2.set_ylabel('phi')
-    ax2.set_title('Low Attraction: User '+str(user_min))
+    ax2.set_title('High Attraction: User '+str(high))
     ax2.legend()
     plt.xlim([-np.pi, np.pi])
     plt.ylim([-np.pi/2.0,np.pi/2.0])
@@ -221,9 +253,63 @@ def trace_flow_comparison(video_name,user_min,user_max):
     plt.show()
 
     return
+#Cluster video montions into High/medium/low and plot
+def motion_analysis():
+    df  = vp.load_flow()
+    print(df)
+    videos = ['1_PortoRiverside', '2_Diner', '3_PlanEnergyBioLab', '4_Ocean', '5_Waterpark', '6_DroneFlight', '7_GazaFishermen', '8_Sofa', '9_MattSwift', '10_Cows',  '12_TeatroRegioTorino', '13_Fountain', '14_Warship', '15_Cockpit', '16_Turtle', '17_UnderwaterPark', '18_Bar', '19_Touvet']
+    video_averages=[]
+    for video in videos:  
+        sample = df.query(f"video=='{video}'")
+        averages=[]
+        for t in sample['time'].values:
+            
+            flow_sample= sample.query(f"time=='{t}'")  
+            flows = flow_sample['optical flow']
+
+            flow_magnitudes = []
+            for flow in flows:
+                magnitude = (flow[2]-flow[0])*(flow[2]-flow[0])+(flow[3]-flow[1])*(flow[3]-flow[1])
+                flow_magnitudes.append(magnitude)
+            average = round(np.average(flow_magnitudes),2)
+            averages.append(average)
+        video_average = round(np.average(averages),2)    
+        video_averages.append(video_average)
+    
+    df_vm = pd.DataFrame(list(zip(videos,video_averages)),columns=['video', 'average flow'])
+    df_vm['Value Group']=''
+    threshold_medium, threshold_hight = get_class_thresholds(video_averages)
+    print(df_vm)
+    for ind in df_vm.index:
+        value = df_vm.loc[ind]['average flow'] 
+        if value <=threshold_medium:
+            df_vm.at[ind,'Value Group'] = 'Low Motion'
+        elif value >= threshold_hight:
+            df_vm.at[ind,'Value Group'] = 'High Motion'
+        else:
+            df_vm.at[ind,'Value Group'] = 'Medium Motion'
+    df_vm.to_csv('motion analysis.csv')
+  
+    return df_vm
+#test mean magnitude
+
+#print(motion_analysis())
+     
+
+                                                                                   
 
 
-trace_flow_comparison('17_UnderwaterPark',2,34)
+#test High motion: video  4_Ocean:
+#plotH_attraction('4_Ocean')
+#trace_flow_comparison('4_Ocean',6,3)
+
+#test Medium motion: video 10_Cows: 
+#plotH_attraction('10_Cows')
+#trace_flow_comparison('10_Cows',5,15)
+#test low motion: 16_Turtle
+plotH_attraction('16_Turtle')
+#test flow comparison
+#trace_flow_comparison('17_UnderwaterPark',2,34)
 
 
 
@@ -232,8 +318,7 @@ trace_flow_comparison('17_UnderwaterPark',2,34)
 
 
     
-#test plotH
-#plotH_attraction('17_UnderwaterPark')
+
 
 
 
