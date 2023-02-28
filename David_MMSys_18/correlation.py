@@ -26,15 +26,9 @@ def pearson_global(flow,traces):
     flow = np.ndarray.flatten(flow)
     traces=np.ndarray.flatten(traces)
 
-    plt.plot(flow,traces,'o')    
-        #setting title
-    #setting axix label
-    plt.xlabel('opticalflow')
-    plt.ylabel('traces')
-    plt.grid()
-    plt.show()
+   
     r, p = stats.pearsonr(flow,traces)
-    print(f"Scipy computed Pearson r: {r} and p-value: {p}")   
+    #print(f"Scipy computed Pearson r: {r} and p-value: {p}")   
 
     return r,p
 
@@ -95,48 +89,24 @@ def data_tidying(video_name,user):#this function drop all unavailable values in 
     return time, traces,endpoint,flow_vector   
 
 
-def plot_random_pearson():
-    output_folder = './David_MMSys_18/Pearson'
-    # Fixing random state for reproducibility
-    np.random.seed(7)
+def cal_pearson(video_name):
     users = np.arange(57)
-    video_sample = rd.choice(VIDEOS)
-    user_sample = rd.choice(users)
+    user_cor  = []
+    for i in range(len(users)):
+        time,traces,endpoint,flow_vector = data_tidying(video_name,users[i])
+        cor,p = pearson_global(flow_vector,traces)
+        print(str(users[i])+" 's overall correlation with movement is "+ str(cor))
+        user_cor.append(cor)
+    
+    user_min=user_cor.index(min(user_cor))
+    user_max=user_cor.index(max(user_cor))
 
-    
-    #print(user)
-    #print(video_name)
-    traces,flow,vector  = data_tidying(video_sample,user_sample)
-    
-    t,flow_x,flow_y,flow_z = flow[:,0],flow[:,1],flow[:,2],flow[:,3]
-    trace_x,trace_y,trace_z = traces[:,1],traces[:,2],traces[:,3]
-    
+    text = 'Highest correlation: user '+str(user_max)+'\nLowest correlation: user '+str(user_min)
+    print(text)
 
-    #create a figure
-    
-    fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
-    
-    title = 'User '+str(user_sample)+' watching '+video_sample
-    theta_t,phi_t,theta_f, phi_f= np.zeros_like(t),np.zeros_like(t),np.zeros_like(t),np.zeros_like(t)
-    for i in range(len(t)):
-        theta_t[i] ,phi_t[i] = cartesian_to_eulerian(trace_x[i],trace_y[i],trace_z[i]) 
-        theta_f[i], phi_f[i]= cartesian_to_eulerian(flow_x[i],flow_y[i],flow_z[i]) 
+    return user_cor
 
-    ax.plot3D(t,theta_t ,phi_t,'grey',label ='User head position')  
-    ax.scatter3D(t,theta_f, phi_f,label = 'Mean optical flow end points')
-    
-    ax.set_xlabel('time(second)')
-    ax.set_ylabel('theta')
-    ax.set_zlabel('phi')
-    ax.set_title(title)
-    ax.legend()
 
-            
-    path=os.path.join(output_folder,title)
-    fig.savefig(path)
-    fig.show()
-    return
 
 
 def get_class_thresholds(data) :
@@ -195,8 +165,32 @@ def plotH_attraction(video_name):
 
     return
     
+def plotH_pearson(video_name):
+    cor= np.array(cal_pearson(video_name))
+    threshold_medium, threshold_hight = get_class_thresholds(cor)
+    atr1 =cor [cor<threshold_medium]
+    atr2 =cor[(cor<threshold_hight)  & (cor>=threshold_medium)]
+    atr3 = cor[cor>=threshold_hight]
+    fig = go.Figure()
+
+    fig.add_trace(go.Histogram(x=atr1,name = 'low correlation'))
+    fig.add_trace(go.Histogram(x=atr2,name = 'medium correlation'))
+    fig.add_trace(go.Histogram(x=atr3,name = 'high correlation'))
 
 
+    fig.update_layout(
+        title_text=video_name, # title of plot
+        xaxis_title_text='Attraction', # xaxis label
+        yaxis_title_text='Count', # yaxis label
+        barmode = 'stack'
+    
+        ) # gap between bars of the same location coordinates)
+
+
+    fig.show()
+    #plot histgram
+
+    return
 
 def trace_flow_comparison(video_name,high,low):
     #create figure
@@ -298,18 +292,34 @@ def motion_analysis():
 
                                                                                    
 
-
+#motion analysis:
+'''
 #test High motion: video  4_Ocean:
-#plotH_attraction('4_Ocean')
-#trace_flow_comparison('4_Ocean',6,3)
+plotH_attraction('4_Ocean')
+trace_flow_comparison('4_Ocean',6,3)
 
 #test Medium motion: video 10_Cows: 
-#plotH_attraction('10_Cows')
-#trace_flow_comparison('10_Cows',5,15)
+plotH_attraction('10_Cows')
+trace_flow_comparison('10_Cows',5,15)
+
 #test low motion: 16_Turtle
 plotH_attraction('16_Turtle')
-#test flow comparison
-#trace_flow_comparison('17_UnderwaterPark',2,34)
+trace_flow_comparison('16_Turtle',47,2)
+'''
+
+#user analysis:
+#test High motion: video  4_Ocean:
+#plotH_pearson('4_Ocean')
+#trace_flow_comparison('4_Ocean',55,15)
+
+#test Medium motion: video 10_Cows: 
+#plotH_pearson('10_Cows')
+#trace_flow_comparison('10_Cows',15,26)
+
+#test low motion: 16_Turtle
+plotH_attraction('16_Turtle')
+trace_flow_comparison('16_Turtle',47,2)
+
 
 
 
