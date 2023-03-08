@@ -288,10 +288,84 @@ def motion_analysis():
 #test mean magnitude
 
 #print(motion_analysis())
+
+def user_comparison():
+    user_comparison = np.zeros((57,len(VIDEOS)))
+   
+    x = range(16)
+    random_user = [rd.randint(0, 56) for _ in range(5)]
+    
+    for i in range(len(random_user)):
+        user_atr  = []
+        for video_name in VIDEOS:
+            
+            time,traces,endpoint,flow_vector = data_tidying(video_name,random_user[i])
+        
+            atr = user_attraction(flow_vector,traces)#calculate the user attraction 
+            user_atr.append(atr) 
+        
+        user_comparison[i,:] = user_atr #save the attraction in an array 
+        print(f'user {random_user[i]} ')
+
+
+    fig, ax = plt.subplots()  
+    plt.rcParams["figure.autolayout"] = True
+    for j in range(len(random_user)):
+        ax.plot(x,user_comparison[j,:],label=f'user {random_user[j]} ')
+    #change x axis into video names
+    ax.set_xlabel('videos')  # Add an x-label to the axes.
+    ax.set_ylabel('attraction value')  # Add a y-label to the axes.
+    ax.set_title("User's attraction Plot")  # Add a title to the axes.
+    ax.legend()  # Add a legend.
+    ax.grid()
+
+    plt.show()
+    
+
+
+    return
+
+def user_comparison_position():
+    user_comparison = np.zeros((57,len(VIDEOS)))
+
+    x = range(16)
+    random_user = [rd.randint(0, 56) for _ in range(5)]
+    
+    for i in range(len(random_user)):
+        user_atr  = []
+        for video_name in VIDEOS:
+            
+            time,traces,endpoint,flow_vector = data_tidying(video_name,random_user[i])
+        
+            atr,p =pearson_global(flow_vector,traces)#calculate the user attraction 
+            user_atr.append(atr) 
+        user_comparison[i,:] = user_atr #save the attraction in an array 
+        print(f'user {random_user[i]} ')
+
+
+    fig, ax = plt.subplots()  
+    plt.rcParams["figure.autolayout"] = True
+    for j in range(len(random_user)):
+        ax.plot(x,user_comparison[j,:],label=f'user {random_user[j]} ')
+    #change x axis into video names
+    ax.set_xlabel('videos')  # Add an x-label to the axes.
+    ax.set_ylabel('r value')  # Add a y-label to the axes.
+    ax.set_title("User's Position Correlation Plot")  # Add a title to the axes.
+    ax.legend()  # Add a legend.
+    ax.grid()
+
+    plt.show()
+    
+
+
+    return
      
 
                                                                                    
-
+#test user compare:
+#user_comparison()
+#
+user_comparison_position()
 #motion analysis:
 '''
 #test High motion: video  4_Ocean:
@@ -317,8 +391,8 @@ trace_flow_comparison('16_Turtle',47,2)
 #trace_flow_comparison('10_Cows',15,26)
 
 #test low motion: 16_Turtle
-plotH_attraction('16_Turtle')
-trace_flow_comparison('16_Turtle',47,2)
+#plotH_attraction('16_Turtle')
+#trace_flow_comparison('16_Turtle',47,2)
 
 
 
