@@ -152,7 +152,7 @@ def compare_lucas_kanade_method(video_path,t):
     
         
     cap.release()
-    return good_old, good_new
+    return good_old, good_new,flow_image
 
                  
     #save_optical_flow(flow)
@@ -176,7 +176,7 @@ def plotflow(mask,frame,new,old):
         # Green color in BGR
         color = (0, 255, 0)      
         flow.append([a,b,c,d])
-        mask = cv.arrowedLine(mask, (int(c),int(d)), (int(a),int (b)), color,2)
+        mask = cv.arrowedLine(mask, (int(c),int(d)), (int(a),int (b)), color,3)
         frame = cv.circle(frame, (int(a),int(b) ), 5, color, -1)
    
     
@@ -370,8 +370,49 @@ def save_filteredFlow():#add optical flow for each user to the dataframe
 #ds2.to_csv('Optical Flow')#save the new df 
 
 #print(ds2)
+def xyz2uv(xyz):
+    x, y, z = np.split(xyz, 3, axis=-1)
+    u = np.arctan2(x, z)
+    c = np.sqrt(x**2 + z**2)
+    v = np.arctan2(y, c)
 
+    return np.concatenate([u, v], axis=-1)
 
+def fov_points_2d(trace) -> np.ndarray:
+    if (trace[1], trace[2], trace[3]) not in _fov_points:
+        rotation = rotationBetweenVectors(X1Y0Z0, np.array([trace[1],trace[2],trace[3]]))
+        #find 3d corners
+        points = np.array([
+            rotation.rotate(_fov_x1y0z0_points[0]),
+            rotation.rotate(_fov_x1y0z0_points[1]),
+            rotation.rotate(_fov_x1y0z0_points[2]),
+            rotation.rotate(_fov_x1y0z0_points[3]),
+        ])
+        #convert into 2d corners
+        points_converted = np.array([
+                xyz2uv(points[0]),
+                xyz2uv(points[1]),
+                xyz2uv(points[2]),
+                xyz2uv(points[3])
+            ])
+
+        _fov_points[(trace[1], trace[2], trace[3])] = points_converted
+    return _fov_points[(trace[1], trace[2], trace[3])]
+
+def uv2coor(uv):
+    u, v = np.split(uv, 2, axis=-1)
+    coor_x = (u / (2 * np.pi) + 0.5) * WIDTH- 0.5
+    coor_y = (-v / np.pi + 0.5) * HEIGHT - 0.5
+    return np.concatenate([coor_x, coor_y], axis=-1)
+
+def fov_coor(corners):
+    fov_coor = np.array([
+        uv2coor(corners[0]),
+        uv2coor(corners[1]),
+        uv2coor(corners[2]),
+        uv2coor(corners[3])
+    ])
+    return fov_coor
             
             
 
@@ -387,4 +428,36 @@ t = traces[10][0]
 print(t)
 filtered_flow = compare_lucas_kanade_method(video_path,2,corners)
 print(filtered_flow)"""
+
+
+#visualise flow:
+def vis_flow():
+    ds = load_data()
+    j = 70
+    traces,video_name = get_traces(ds,0)
+    user = ds.loc[8]['ds_user']
+    corners = fov_points_2d(traces[j])
+
+    coor = fov_coor(corners)
+    print(coor)
+    x = []
+    y = []
+    for view_corner in coor:
+        xx,yy = (np.split(view_corner,2,axis=-1))
+        x.append(xx)
+        y.append(yy)
+
+    x_min = int(np.min(x))
+    x_max = int(np.max(x))
+    y_min = int(np.min(y))
+    y_max =int(np.max(y))
+
+    t = traces[j][0]
+    video_path = os.path.join(STIMULI_FOLDER,video_name+'.mp4')
+    old,new,img = compare_lucas_kanade_method(video_path,t)
+    new_img = cv.rectangle(img,(x_min,y_max),(x_max,y_min),(0,255,0),10)
+    flow_name =  os.path.join('images','flow'+str(t)+".jpg") 
+    cv.imwrite(flow_name,new_img)
+    return            
+
 

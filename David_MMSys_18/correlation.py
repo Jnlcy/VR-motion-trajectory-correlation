@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import scipy.stats as stats
 import random as rd
+rd.seed(10)
 import jenkspy
 import plotly.graph_objects as go
 import plotly.express as px
@@ -292,7 +293,7 @@ def motion_analysis():
 def user_comparison():
     user_comparison = np.zeros((57,len(VIDEOS)))
    
-    x = range(16)
+    x = range(1,17)
     random_user = [rd.randint(0, 56) for _ in range(5)]
     
     for i in range(len(random_user)):
@@ -307,15 +308,18 @@ def user_comparison():
         user_comparison[i,:] = user_atr #save the attraction in an array 
         print(f'user {random_user[i]} ')
 
+   
+    
 
     fig, ax = plt.subplots()  
     plt.rcParams["figure.autolayout"] = True
     for j in range(len(random_user)):
-        ax.plot(x,user_comparison[j,:],label=f'user {random_user[j]} ')
+        mean = np.mean(user_comparison[j,:])
+        ax.plot(x,(user_comparison[j,:]),label=f'user {random_user[j]}, attraction= {mean:.5f} ')
     #change x axis into video names
-    ax.set_xlabel('videos')  # Add an x-label to the axes.
-    ax.set_ylabel('attraction value')  # Add a y-label to the axes.
-    ax.set_title("User's attraction Plot")  # Add a title to the axes.
+    ax.set_xlabel('videos',fontsize=12)  # Add an x-label to the axes.
+    ax.set_ylabel('attraction value',fontsize=12)  # Add a y-label to the axes.
+    ax.set_title("User's attraction (dot product) Plot",weight = 'bold',fontsize=14)  # Add a title to the axes.
     ax.legend()  # Add a legend.
     ax.grid()
 
@@ -328,7 +332,7 @@ def user_comparison():
 def user_comparison_position():
     user_comparison = np.zeros((57,len(VIDEOS)))
 
-    x = range(16)
+    x = range(1,17)
     random_user = [rd.randint(0, 56) for _ in range(5)]
     
     for i in range(len(random_user)):
@@ -346,11 +350,12 @@ def user_comparison_position():
     fig, ax = plt.subplots()  
     plt.rcParams["figure.autolayout"] = True
     for j in range(len(random_user)):
-        ax.plot(x,user_comparison[j,:],label=f'user {random_user[j]} ')
+        mean = np.mean(user_comparison[j,:])
+        ax.plot(x,user_comparison[j,:],label=f'user {random_user[j]},r= {mean:.5f} ')
     #change x axis into video names
-    ax.set_xlabel('videos')  # Add an x-label to the axes.
-    ax.set_ylabel('r value')  # Add a y-label to the axes.
-    ax.set_title("User's Position Correlation Plot")  # Add a title to the axes.
+    ax.set_xlabel('videos',fontsize=12)  # Add an x-label to the axes.
+    ax.set_ylabel('r value',fontsize=12)  # Add a y-label to the axes.
+    ax.set_title("User's Position Correlation (Pearson r) Plot",weight= 'bold',fontsize =14)  # Add a title to the axes.
     ax.legend()  # Add a legend.
     ax.grid()
 
@@ -359,13 +364,56 @@ def user_comparison_position():
 
 
     return
-     
 
+def user_profile():
+    user_comparison=[]
+   
+    #random_user = range(0,10)
+    #random_user = range(10,20)
+    #random_user = range(20,30)
+    #random_user = range(30,40)
+    #random_user = range(40,50)
+    random_user = range(50,57)
+    
+    
+    user_comparison=[]
+    for video_name in VIDEOS:
+        user_atr  = []
+        for i in range(len(random_user)):
+            
+            time,traces,endpoint,flow_vector = data_tidying(video_name,random_user[i])
+        
+            atr = user_attraction(flow_vector,traces)#calculate the user attraction 
+            user_atr.append(atr) 
+        user_comparison.append(user_atr)
+        #save the attraction in an array 
+        #print(f'user {random_user[i]} ')
+    print(user_comparison)
+    id = ['user' + str(m) for m in  random_user]
+    
+
+    user_comparison =user_comparison
+    
+
+    df = pd.DataFrame(user_comparison,  columns=id)
+    print(df)
+
+    normalized_df=(df-df.mean())/df.std()
+
+    fig =px.box(normalized_df )
+    fig.update_layout(xaxis_title='Users', yaxis_title='attraction') 
+    fig.show()
+
+    return
+    
+     
+random=
+negative = []
                                                                                    
 #test user compare:
-#user_comparison()
+user_profile()
 #
-user_comparison_position()
+#user_comparison_position()
 #motion analysis:
 '''
 #test High motion: video  4_Ocean:
